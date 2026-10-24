@@ -1,17 +1,29 @@
 # diealog_app
 
-DIEALOG mobile app
+DIEALOG mobile app (Flutter).
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run                                   # https://diealog.shxin.kr/api
+flutter run --dart-define=API_BASE_URL=http://localhost:8080/api
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Layout
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```
+lib/
+  core/        config, network (Dio + auth interceptor), token storage, router
+  data/        models, repositories, providers.dart (Riverpod wiring)
+    repositories/mock/   features the backend does not expose yet
+  features/    screens, one folder per feature
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Backend API: https://diealog.shxin.kr/swagger/index.html
+
+Mocked until the backend adds them: email verification / OTP, profile and
+password editing, user deletion, and the whole after-death side (entrusted
+records, received messages). Swap the implementation in `data/providers.dart`
+when the endpoints exist.
