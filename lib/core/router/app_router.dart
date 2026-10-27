@@ -12,6 +12,8 @@ import '../../features/auth/signup/signup_password_screen.dart';
 import '../../features/auth/signup/signup_phone_screen.dart';
 import '../../features/auth/signup/signup_terms_screen.dart';
 import '../../features/home/home_shell.dart';
+import '../../features/legacy/account_detail_screen.dart';
+import '../../features/legacy/account_edit_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
 import 'routes.dart';
@@ -83,6 +85,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.home,
         builder: (context, state) => const HomeShell(),
+      ),
+      GoRoute(
+        path: Routes.accountDetail,
+        builder: (context, state) => AccountDetailScreen(
+          legacyId: state.pathParameters['legacyId']!,
+          accountId: state.pathParameters['accountId']!,
+        ),
+        routes: [
+          GoRoute(
+            path: Routes.accountEdit,
+            builder: (context, state) => AccountEditScreen(
+              legacyId: state.pathParameters['legacyId']!,
+              accountId: state.pathParameters['accountId']!,
+            ),
+          ),
+        ],
       ),
     ],
   );

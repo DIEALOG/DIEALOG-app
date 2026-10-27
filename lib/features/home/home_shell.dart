@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/app_icon.dart';
 import '../auth/auth_controller.dart';
+import '../legacy/data_screen.dart';
 import 'home_screen.dart';
 
 class HomeShell extends StatefulWidget {
@@ -25,7 +26,7 @@ class _HomeShellState extends State<HomeShell> {
           index: _index,
           children: const [
             HomeScreen(),
-            _PlaceholderTab(title: '데이터'),
+            DataScreen(),
             _PlaceholderTab(title: '관계자'),
             _PlaceholderTab(title: '남기는 말'),
             _SettingsTab(),

@@ -10,6 +10,15 @@ abstract final class Routes {
   static const signupTerms = '/signup/terms';
   static const signupComplete = '/signup/complete';
   static const home = '/home';
+
+  static const accountDetail = '/account/:legacyId/:accountId';
+  static const accountEdit = 'edit';
+
+  static String accountDetailOf(String legacyId, String accountId) =>
+      '/account/$legacyId/$accountId';
+
+  static String accountEditOf(String legacyId, String accountId) =>
+      '${accountDetailOf(legacyId, accountId)}/$accountEdit';
 }
 
 abstract final class AuthPaths {

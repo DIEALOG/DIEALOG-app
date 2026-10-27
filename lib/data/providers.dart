@@ -5,7 +5,10 @@ import '../core/config/env.dart';
 import '../core/network/auth_interceptor.dart';
 import '../core/storage/token_storage.dart';
 import '../features/auth/auth_controller.dart';
+import 'mock/mock_api_interceptor.dart';
+import 'mock/mock_backend.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/last_word_repository.dart';
 import 'repositories/legacy_repository.dart';
 import 'repositories/mock/afterlife_repository.dart';
 import 'repositories/mock/settings_repository.dart';
@@ -16,6 +19,9 @@ import 'repositories/stakeholder_repository.dart';
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => SecureTokenStorage(),
 );
+
+/// One fake backend for the whole app, so writes are visible on every screen.
+final mockBackendProvider = Provider<MockBackend>((ref) => MockBackend.seeded());
 
 final dioProvider = Provider<Dio>((ref) {
   final options = BaseOptions(
@@ -35,6 +41,11 @@ final dioProvider = Provider<Dio>((ref) {
           ref.read(authControllerProvider.notifier).sessionExpired(),
     ),
   );
+  if (Env.useMockApi) {
+    final backend = ref.watch(mockBackendProvider);
+    dio.interceptors.add(MockApiInterceptor(backend: backend));
+    refreshDio.interceptors.add(MockApiInterceptor(backend: backend));
+  }
   ref.onDispose(() {
     dio.close();
     refreshDio.close();
@@ -59,6 +70,10 @@ final legacyRepositoryProvider = Provider(
 
 final stakeholderRepositoryProvider = Provider(
   (ref) => StakeholderRepository(ref.watch(dioProvider)),
+);
+
+final lastWordRepositoryProvider = Provider(
+  (ref) => LastWordRepository(ref.watch(dioProvider)),
 );
 
 // Backed by mocks until the backend exposes these features. Swap the

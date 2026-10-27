@@ -46,6 +46,7 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
             name: draft.name,
             email: draft.email,
             password: draft.password,
+            phoneNumber: draft.phone,
           );
       if (!mounted) return;
       context.go(Routes.signupComplete);

@@ -23,11 +23,14 @@ class AuthRepository {
     required String name,
     required String email,
     required String password,
+    required String phoneNumber,
   }) =>
-      _authenticate(
-        '/signup',
-        {'name': name, 'email': email, 'password': password},
-      );
+      _authenticate('/signup', {
+        'name': name,
+        'email': email,
+        'password': password,
+        'phone_number': phoneNumber,
+      });
 
   /// The backend has no logout endpoint; dropping the tokens is all we can do.
   Future<void> logout() => _storage.clear();

@@ -1,7 +1,9 @@
 import 'account.dart';
 import 'json.dart';
 
-/// `domain.Legacy`: a named bundle of accounts ("데이터" in the app).
+/// `domain.LegacyResponse`: a named bundle of accounts.
+///
+/// The list endpoint returns a bare JSON array, so there is no pagination.
 class Legacy {
   const Legacy({
     required this.id,
@@ -24,31 +26,4 @@ class Legacy {
   final List<Account> accounts;
   final String? userId;
   final DateTime? createdAt;
-}
-
-/// `handler.PaginatedLegacyResponse`
-class Paginated<T> {
-  const Paginated({
-    required this.items,
-    required this.total,
-    required this.limit,
-    required this.offset,
-  });
-
-  factory Paginated.fromJson(Json json, T Function(Json) fromJson) {
-    final items = parseList(json['items'], fromJson);
-    return Paginated(
-      items: items,
-      total: json['total'] as int? ?? items.length,
-      limit: json['limit'] as int? ?? items.length,
-      offset: json['offset'] as int? ?? 0,
-    );
-  }
-
-  final List<T> items;
-  final int total;
-  final int limit;
-  final int offset;
-
-  bool get hasMore => offset + items.length < total;
 }

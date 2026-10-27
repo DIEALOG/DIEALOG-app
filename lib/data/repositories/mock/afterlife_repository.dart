@@ -69,6 +69,7 @@ class MockAfterlifeRepository implements AfterlifeRepository {
       legacyName: 'SNS 계정',
       account: const Account(
         id: 'mock-account-1',
+        name: '개인 계정',
         type: AccountType(service: AccountService.instagram),
         action: AccountAction(
           kind: AccountActionKind.backupAndDelete,
@@ -85,6 +86,7 @@ class MockAfterlifeRepository implements AfterlifeRepository {
       legacyName: '업무 계정',
       account: const Account(
         id: 'mock-account-2',
+        name: '업무 계정',
         type: AccountType(service: AccountService.gitHub),
         action: AccountAction(kind: AccountActionKind.remain),
         accountId: 'haneul-dev',

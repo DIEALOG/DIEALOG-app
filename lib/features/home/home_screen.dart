@@ -5,6 +5,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/app_icon.dart';
+import '../../data/models/last_word.dart';
 import '../../data/models/legacy.dart';
 import '../../data/models/profile.dart';
 import '../../data/models/stakeholder.dart';
@@ -17,24 +18,28 @@ class HomeSnapshot {
     required this.profile,
     required this.legacies,
     required this.stakeholders,
+    required this.lastWords,
     required this.entrusted,
   });
 
   final Profile profile;
   final List<Legacy> legacies;
   final List<Stakeholder> stakeholders;
+  final List<LastWord> lastWords;
   final List<EntrustedRecord> entrusted;
 }
 
 final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((ref) async {
   final profile = await ref.watch(profileRepositoryProvider).fetch();
-  final page = await ref.watch(legacyRepositoryProvider).list();
+  final legacies = await ref.watch(legacyRepositoryProvider).list();
   final people = await ref.watch(stakeholderRepositoryProvider).list();
+  final lastWords = await ref.watch(lastWordRepositoryProvider).list();
   final entrusted = await ref.watch(afterlifeRepositoryProvider).listEntrusted();
   return HomeSnapshot(
     profile: profile,
-    legacies: page.items,
+    legacies: legacies,
     stakeholders: people,
+    lastWords: lastWords,
     entrusted: entrusted,
   );
 });
@@ -66,21 +71,21 @@ class _HomeBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accounts = data.legacies.expand((l) => l.accounts).toList();
-    final assigned = accounts.where((a) => a.stakeholderIds.isNotEmpty).length;
-    final unassigned = accounts.where((a) => a.stakeholderIds.isEmpty).length;
-    final letters = data.profile.testament == null || data.profile.testament!.trim().isEmpty
-        ? 0
-        : 1;
+    final assigned = accounts.where((a) => a.hasAudience).length;
+    final unassigned = accounts.where((a) => !a.hasAudience).toList();
+    final letters = data.lastWords.length;
+    final unaddressed = [
+      for (final word in data.lastWords)
+        if (word.receiverIds.isEmpty && word.receiverGroupIds.isEmpty) word,
+    ];
     final confirmers = data.stakeholders.where((s) => s.email != null).length;
     final todos = <_Todo>[
-      if (unassigned > 0)
+      if (unassigned.isNotEmpty)
         _Todo(
           icon: 'assets/icons/icon_list_data.svg',
-          title: unassigned == 1
-              ? (accounts.firstWhere((a) => a.stakeholderIds.isEmpty).type?.name ??
-                  accounts.firstWhere((a) => a.stakeholderIds.isEmpty).type?.service.wire ??
-                  '계정')
-              : '공개 대상 미지정 계정',
+          title: unassigned.length == 1
+              ? unassigned.single.name
+              : '공개 대상 미지정 데이터',
           caption: '공개 대상 미지정',
         ),
       if (data.stakeholders.any((s) => s.email == null && s.phone == null))
@@ -89,11 +94,11 @@ class _HomeBody extends StatelessWidget {
           title: '${data.stakeholders.firstWhere((s) => s.email == null && s.phone == null).name} 님',
           caption: '초대 수락 대기',
         ),
-      if (letters == 1)
+      if (unaddressed.isNotEmpty)
         _Todo(
           icon: 'assets/icons/icon_list_letters.svg',
-          title: '‘${_ellipsis(data.profile.testament!, 12)}’',
-          caption: '작성 중',
+          title: '‘${_ellipsis(unaddressed.first.title, 12)}’',
+          caption: '받는 사람 미지정',
         ),
     ];
 
@@ -299,7 +304,7 @@ class _SummaryCard extends StatelessWidget {
                 child: _SummaryStat(
                   label: '남기는 말',
                   value: '$letters통',
-                  hint: letters == 0 ? '없음' : '작성 중 $letters',
+                  hint: letters == 0 ? '없음' : '전달 예정',
                 ),
               ),
               Expanded(

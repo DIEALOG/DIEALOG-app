@@ -17,6 +17,15 @@ abstract final class AppColors {
   static const unread = Color(0xFFD9483B);
   static const white = Color(0xFFFFFFFF);
   static const avatarMuted = Color(0xFFF7F8F9);
+
+  /// Stands in for the service logo in data lists.
+  static const brand = Color(0xFF4474C8);
+  static const listDivider = Color(0xFFEBEDF0);
+  static const search = Color(0xFFF4F5F6);
+  static const inputFill = Color(0xFFF9FAFA);
+  static const inputLine = Color(0xFFEDEEF0);
+  static const chevron = Color(0xFFB8BEC7);
+  static const optionSelected = Color(0xFFF0F4F8);
   static const barIdle = Color(0xFF506078);
   static const termsFill = Color(0xFFF1F3F6);
 }

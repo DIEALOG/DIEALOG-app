@@ -34,10 +34,14 @@ class AuthController extends Notifier<AuthStatus> {
     required String name,
     required String email,
     required String password,
+    required String phoneNumber,
   }) async {
-    await ref
-        .read(authRepositoryProvider)
-        .signup(name: name, email: email, password: password);
+    await ref.read(authRepositoryProvider).signup(
+          name: name,
+          email: email,
+          password: password,
+          phoneNumber: phoneNumber,
+        );
     if (ref.mounted) state = AuthStatus.signedIn;
   }
 
