@@ -41,10 +41,7 @@ class _DataScreenState extends ConsumerState<DataScreen> {
               Text('내 데이터', style: AppText.screenTitle),
               const Spacer(),
               IconButton(
-                // 10~13 데이터 등록 플로우는 다음 단계에서 연결합니다.
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('데이터 등록 화면은 다음 단계에서 이어집니다.')),
-                ),
+                onPressed: () => context.push(Routes.accountNew),
                 tooltip: '데이터 추가',
                 icon: const AppIcon('assets/icons/icon_plus.svg', size: 24),
               ),

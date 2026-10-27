@@ -26,6 +26,7 @@ abstract final class AppColors {
   static const inputLine = Color(0xFFEDEEF0);
   static const chevron = Color(0xFFB8BEC7);
   static const optionSelected = Color(0xFFF0F4F8);
+  static const progress = Color(0xFF5E7F6B);
   static const barIdle = Color(0xFF506078);
   static const termsFill = Color(0xFFF1F3F6);
 }

@@ -11,6 +11,7 @@ abstract final class Routes {
   static const signupComplete = '/signup/complete';
   static const home = '/home';
 
+  static const accountNew = '/account/new';
   static const accountDetail = '/account/:legacyId/:accountId';
   static const accountEdit = 'edit';
 

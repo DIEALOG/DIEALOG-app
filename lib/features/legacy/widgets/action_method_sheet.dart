@@ -25,7 +25,7 @@ const _sheetOrder = [
 /// dismissing keeps the current choice, and the detail text is never cleared.
 Future<AccountActionKind?> showActionMethodSheet(
   BuildContext context, {
-  required AccountActionKind selected,
+  AccountActionKind? selected,
 }) {
   FocusScope.of(context).unfocus();
   return showModalBottomSheet<AccountActionKind>(
@@ -40,9 +40,9 @@ Future<AccountActionKind?> showActionMethodSheet(
 }
 
 class _ActionMethodSheet extends StatelessWidget {
-  const _ActionMethodSheet({required this.selected});
+  const _ActionMethodSheet({this.selected});
 
-  final AccountActionKind selected;
+  final AccountActionKind? selected;
 
   @override
   Widget build(BuildContext context) {

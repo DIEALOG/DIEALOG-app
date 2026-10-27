@@ -64,8 +64,16 @@ class LegacyRepository {
   /// including the password.
   Future<Account> replaceAccount(String legacyId, Account account) async {
     final created = await addAccount(legacyId, account);
-    if (account.id.isNotEmpty) {
+    if (account.id.isEmpty) return created;
+    try {
       await removeAccount(legacyId, account.id);
+    } on ApiException catch (e) {
+      // The new copy is already stored, so say so rather than look like the
+      // edit was lost.
+      throw ApiException(
+        '변경 사항은 저장했지만 이전 항목을 지우지 못했어요. 목록에서 중복을 확인해 주세요. (${e.message})',
+        statusCode: e.statusCode,
+      );
     }
     return created;
   }

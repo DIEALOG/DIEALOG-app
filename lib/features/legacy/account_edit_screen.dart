@@ -5,13 +5,13 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
-import '../../core/widgets/app_icon.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/account.dart';
 import '../../data/providers.dart';
 import 'legacy_providers.dart';
 import 'widgets/account_sections.dart';
 import 'widgets/action_method_sheet.dart';
+import 'widgets/form_fields.dart';
 
 /// `06-1 · 처리 지침 편집`
 ///
@@ -153,25 +153,11 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
         const SizedBox(height: 3),
         Text(account.name, style: AppText.screenTitle),
         const SizedBox(height: 38),
-        Text('처리 방식', style: AppText.formLabel),
+        const FieldLabel('처리 방식'),
         const SizedBox(height: 8),
-        _MethodField(label: kind.label, onTap: _pickKind),
+        SelectField(value: kind.label, onTap: _pickKind),
         const SizedBox(height: 36),
-        Text.rich(
-          TextSpan(
-            children: [
-              const TextSpan(text: '상세 지침 '),
-              TextSpan(
-                text: '선택',
-                style: AppText.formLabel.copyWith(
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.muted,
-                ),
-              ),
-            ],
-          ),
-          style: AppText.formLabel,
-        ),
+        const FieldLabel('상세 지침', optional: true),
         const SizedBox(height: 12),
         _MessageField(controller: _message),
         if (_error != null) ...[
@@ -186,45 +172,6 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
         const SizedBox(height: 32),
         AccountInfoSection(account: account),
       ],
-    );
-  }
-}
-
-class _MethodField extends StatelessWidget {
-  const _MethodField({required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: AppColors.inputFill,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: AppColors.inkDeep),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: AppText.rowValue.copyWith(
-                  fontWeight: FontWeight.w400,
-                  height: 24 / 15,
-                  letterSpacing: 0,
-                ),
-              ),
-            ),
-            const AppIcon('assets/icons/icon_chevron_down.svg', size: 18),
-          ],
-        ),
-      ),
     );
   }
 }
