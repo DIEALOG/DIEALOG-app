@@ -5,7 +5,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../data/models/account.dart';
-import '../../../data/models/stakeholder.dart';
+import '../../shared/audience_picker.dart';
 import '../legacy_providers.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/service_sheet.dart';
@@ -119,10 +119,7 @@ class ActionStep extends StatelessWidget {
           onTap: onPickKind,
         ),
         const SizedBox(height: 36),
-        FieldLabel(
-          '상세 지침',
-          optional: kind != AccountActionKind.other,
-        ),
+        FieldLabel('상세 지침', optional: kind != AccountActionKind.other),
         const SizedBox(height: 12),
         Container(
           height: 180,
@@ -163,29 +160,20 @@ class ActionStep extends StatelessWidget {
 }
 
 /// `12 · 공개 대상 선택`
-class AudienceStep extends ConsumerStatefulWidget {
+class AudienceStep extends ConsumerWidget {
   const AudienceStep({
     super.key,
     required this.people,
     required this.groups,
-    required this.onTogglePerson,
-    required this.onToggleGroup,
+    required this.onChanged,
   });
 
   final Set<String> people;
   final Set<String> groups;
-  final ValueChanged<String> onTogglePerson;
-  final ValueChanged<String> onToggleGroup;
+  final ValueChanged<AudienceSelection> onChanged;
 
   @override
-  ConsumerState<AudienceStep> createState() => _AudienceStepState();
-}
-
-class _AudienceStepState extends ConsumerState<AudienceStep> {
-  final _expanded = <String>{};
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final overview = ref.watch(dataOverviewProvider);
     return overview.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -199,188 +187,24 @@ class _AudienceStepState extends ConsumerState<AudienceStep> {
           ),
         ),
       ),
-      data: (data) {
-        final groups = data.groups.values.toList();
-        final people = data.people.values.toList();
-        // A person's group is shown on the right of their row.
-        final groupOf = <String, String>{
-          for (final group in groups)
-            for (final id in group.stakeholderIds) id: group.name,
-        };
-
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-          children: [
-            Text('누가 볼 수 있을까요?', style: AppText.screenTitle),
-            if (groups.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              Text(
-                '그룹',
-                style: AppText.formLabel.copyWith(color: AppColors.muted),
-              ),
-              for (final group in groups)
-                _GroupRow(
-                  group: group,
-                  checked: widget.groups.contains(group.id),
-                  expanded: _expanded.contains(group.id),
-                  onTap: () => widget.onToggleGroup(group.id),
-                  onToggleExpanded: () => setState(() {
-                    if (!_expanded.remove(group.id)) _expanded.add(group.id);
-                  }),
-                ),
-            ],
-            if (people.isNotEmpty) ...[
-              const SizedBox(height: 24),
-              Text(
-                '개인',
-                style: AppText.formLabel.copyWith(color: AppColors.muted),
-              ),
-              for (final person in people)
-                _PersonRow(
-                  person: person,
-                  group: groupOf[person.id],
-                  checked: widget.people.contains(person.id),
-                  onTap: () => widget.onTogglePerson(person.id),
-                ),
-            ],
-            if (groups.isEmpty && people.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 48),
-                child: Text(
-                  '아직 등록한 관계자가 없어요.\n관계자 탭에서 먼저 추가해 주세요.',
-                  style: AppText.body,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _GroupRow extends StatelessWidget {
-  const _GroupRow({
-    required this.group,
-    required this.checked,
-    required this.expanded,
-    required this.onTap,
-    required this.onToggleExpanded,
-  });
-
-  final StakeholderGroup group;
-  final bool checked;
-  final bool expanded;
-  final VoidCallback onTap;
-  final VoidCallback onToggleExpanded;
-
-  @override
-  Widget build(BuildContext context) {
-    final members = [for (final s in group.stakeholders) s.name];
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.divider)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      data: (data) => Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: InkWell(
-                  onTap: onTap,
-                  child: SizedBox(
-                    height: 52,
-                    child: Row(
-                      children: [
-                        AppCheckbox(checked: checked),
-                        const SizedBox(width: 12),
-                        Text(group.name, style: AppText.rowValue),
-                        const SizedBox(width: 12),
-                        Text(
-                          '${group.stakeholderIds.length}명',
-                          style: AppText.rowLabel.copyWith(letterSpacing: 0),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (members.isNotEmpty)
-                TextButton(
-                  onPressed: onToggleExpanded,
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(44, 44),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    foregroundColor: AppColors.ink,
-                  ),
-                  child: Text(
-                    expanded ? '접기' : '구성원 보기',
-                    style: AppText.listCaption.copyWith(color: AppColors.ink),
-                  ),
-                ),
-            ],
-          ),
-          if (expanded && members.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 34, bottom: 13),
-              child: Text(
-                members.join(', '),
-                style: AppText.rowLabel.copyWith(height: 22.4 / 14),
-              ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('누가 볼 수 있을까요?', style: AppText.screenTitle),
             ),
+          ),
+          Expanded(
+            child: AudiencePicker(
+              people: data.people.values.toList(),
+              groups: data.groups.values.toList(),
+              selection: AudienceSelection(people: people, groups: groups),
+              onChanged: onChanged,
+            ),
+          ),
         ],
-      ),
-    );
-  }
-}
-
-class _PersonRow extends StatelessWidget {
-  const _PersonRow({
-    required this.person,
-    required this.checked,
-    required this.onTap,
-    this.group,
-  });
-
-  final Stakeholder person;
-  final String? group;
-  final bool checked;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        height: 52,
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: AppColors.divider)),
-        ),
-        child: Row(
-          children: [
-            AppCheckbox(checked: checked),
-            const SizedBox(width: 12),
-            Text(person.name, style: AppText.rowValue),
-            if ((person.relationship ?? '').isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  person.relationship!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.listCaption,
-                ),
-              ),
-            ],
-            const Spacer(),
-            if (group != null)
-              Text(
-                group!,
-                style: AppText.listCaption.copyWith(fontSize: 12),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -428,10 +252,7 @@ class ConfirmStep extends ConsumerWidget {
         const SizedBox(height: 20),
         _SummaryRow(label: '서비스', value: serviceLabel),
         _SummaryRow(label: '계정·데이터', value: account.name),
-        _SummaryRow(
-          label: '처리 방식',
-          value: account.action?.kind.label ?? '-',
-        ),
+        _SummaryRow(label: '처리 방식', value: account.action?.kind.label ?? '-'),
         if (message.isNotEmpty) _SummaryRow(label: '지침', value: message),
         const SizedBox(height: 26),
         Row(
@@ -452,10 +273,7 @@ class ConfirmStep extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Text(
-                  entry.key,
-                  style: AppText.rowValue.copyWith(fontSize: 14),
-                ),
+                Text(entry.key, style: AppText.rowValue.copyWith(fontSize: 14)),
                 const Spacer(),
                 Text(entry.value, style: AppText.listCaption),
               ],
@@ -493,10 +311,7 @@ class _SummaryRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 76,
-            child: Text(label, style: AppText.rowLabel),
-          ),
+          SizedBox(width: 76, child: Text(label, style: AppText.rowLabel)),
           const SizedBox(width: 20),
           Expanded(
             child: Text(

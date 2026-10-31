@@ -9,8 +9,10 @@ import '../../data/models/last_word.dart';
 import '../../data/models/legacy.dart';
 import '../../data/models/profile.dart';
 import '../../data/models/stakeholder.dart';
+import '../../data/models/transition_confirmer.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/mock/afterlife_repository.dart';
+import '../afterlife/afterlife_screen.dart';
 import 'greeting.dart';
 
 class HomeSnapshot {
@@ -20,6 +22,7 @@ class HomeSnapshot {
     required this.stakeholders,
     required this.lastWords,
     required this.entrusted,
+    required this.confirmers,
   });
 
   final Profile profile;
@@ -27,20 +30,29 @@ class HomeSnapshot {
   final List<Stakeholder> stakeholders;
   final List<LastWord> lastWords;
   final List<EntrustedRecord> entrusted;
+  final List<TransitionConfirmer> confirmers;
 }
 
-final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((ref) async {
+final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
+  ref,
+) async {
   final profile = await ref.watch(profileRepositoryProvider).fetch();
   final legacies = await ref.watch(legacyRepositoryProvider).list();
   final people = await ref.watch(stakeholderRepositoryProvider).list();
   final lastWords = await ref.watch(lastWordRepositoryProvider).list();
-  final entrusted = await ref.watch(afterlifeRepositoryProvider).listEntrusted();
+  final entrusted = await ref
+      .watch(afterlifeRepositoryProvider)
+      .listEntrusted();
+  final confirmers = await ref
+      .watch(transitionRepositoryProvider)
+      .listConfirmers();
   return HomeSnapshot(
     profile: profile,
     legacies: legacies,
     stakeholders: people,
     lastWords: lastWords,
     entrusted: entrusted,
+    confirmers: confirmers,
   );
 });
 
@@ -78,7 +90,7 @@ class _HomeBody extends StatelessWidget {
       for (final word in data.lastWords)
         if (word.receiverIds.isEmpty && word.receiverGroupIds.isEmpty) word,
     ];
-    final confirmers = data.stakeholders.where((s) => s.email != null).length;
+    final confirmers = data.confirmers.where((item) => item.isActive).length;
     final todos = <_Todo>[
       if (unassigned.isNotEmpty)
         _Todo(
@@ -91,8 +103,9 @@ class _HomeBody extends StatelessWidget {
       if (data.stakeholders.any((s) => s.email == null && s.phone == null))
         _Todo(
           icon: 'assets/icons/icon_list_people.svg',
-          title: '${data.stakeholders.firstWhere((s) => s.email == null && s.phone == null).name} 님',
-          caption: '초대 수락 대기',
+          title:
+              '${data.stakeholders.firstWhere((s) => s.email == null && s.phone == null).name} 님',
+          caption: '연락처 미입력',
         ),
       if (unaddressed.isNotEmpty)
         _Todo(
@@ -258,9 +271,11 @@ class _SummaryCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: total == 0
                           ? AppColors.barIdle
-                          : i < (assigned * 5 / (total == 0 ? 1 : total)).floor()
-                              ? AppColors.sage
-                              : AppColors.barIdle,
+                          : i <
+                                (assigned * 5 / (total == 0 ? 1 : total))
+                                    .floor()
+                          ? AppColors.sage
+                          : AppColors.barIdle,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -293,7 +308,10 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 11),
             Text(
               '공개 대상 $missing개를 더 지정해 주세요  →',
-              style: AppText.helper.copyWith(color: AppColors.sage, height: 20 / 13),
+              style: AppText.helper.copyWith(
+                color: AppColors.sage,
+                height: 20 / 13,
+              ),
             ),
           ],
           const SizedBox(height: 16),
@@ -384,42 +402,49 @@ class _EntrustedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = record.status == EntrustedRecordStatus.done;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: AppColors.inkDeep,
-            child: Text(
-              firstCharacter(record.ownerName),
-              style: AppText.section.copyWith(
-                color: AppColors.white,
-                fontSize: 14,
-                letterSpacing: 0,
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => EntrustedDetailScreen(recordId: record.id),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.inkDeep,
+              child: Text(
+                firstCharacter(record.ownerName),
+                style: AppText.section.copyWith(
+                  color: AppColors.white,
+                  fontSize: 14,
+                  letterSpacing: 0,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${record.ownerName} 님의 기록', style: AppText.section),
-                const SizedBox(height: 2),
-                Text(
-                  done ? '사후 공개됨 · 처리 완료' : '사후 공개됨 · 처리 필요',
-                  style: AppText.helper.copyWith(height: 1),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${record.ownerName} 님의 기록', style: AppText.section),
+                  const SizedBox(height: 2),
+                  Text(
+                    done ? '사후 공개됨 · 처리 완료' : '사후 공개됨 · 처리 필요',
+                    style: AppText.helper.copyWith(height: 1),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const AppIcon(
-            'assets/icons/icon_chevron_small.svg',
-            size: 16,
-            color: Color(0xFFB8BEC7),
-          ),
-        ],
+            const AppIcon(
+              'assets/icons/icon_chevron_small.svg',
+              size: 16,
+              color: Color(0xFFB8BEC7),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -447,7 +472,14 @@ class _TodoRow extends StatelessWidget {
           AppIcon(todo.icon, size: 20, color: AppColors.muted),
           const SizedBox(width: 6),
           Expanded(
-            child: Text(todo.title, style: AppText.greeting.copyWith(fontSize: 15, height: 21 / 15, color: AppColors.ink)),
+            child: Text(
+              todo.title,
+              style: AppText.greeting.copyWith(
+                fontSize: 15,
+                height: 21 / 15,
+                color: AppColors.ink,
+              ),
+            ),
           ),
           Text(todo.caption, style: AppText.helper.copyWith(height: 1)),
           const SizedBox(width: 8),

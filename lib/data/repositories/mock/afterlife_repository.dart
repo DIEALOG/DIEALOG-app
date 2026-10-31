@@ -25,13 +25,13 @@ class EntrustedRecord {
   final DateTime? disclosedAt;
 
   EntrustedRecord copyWith({EntrustedRecordStatus? status}) => EntrustedRecord(
-        id: id,
-        ownerName: ownerName,
-        legacyName: legacyName,
-        account: account,
-        status: status ?? this.status,
-        disclosedAt: disclosedAt,
-      );
+    id: id,
+    ownerName: ownerName,
+    legacyName: legacyName,
+    account: account,
+    status: status ?? this.status,
+    disclosedAt: disclosedAt,
+  );
 }
 
 class ReceivedMessage {
@@ -60,6 +60,13 @@ abstract interface class AfterlifeRepository {
 }
 
 class MockAfterlifeRepository implements AfterlifeRepository {
+  MockAfterlifeRepository({bool seeded = false}) {
+    if (!seeded) {
+      _records.clear();
+      _messages.clear();
+    }
+  }
+
   static const _latency = Duration(milliseconds: 300);
 
   final List<EntrustedRecord> _records = [
@@ -124,8 +131,9 @@ class MockAfterlifeRepository implements AfterlifeRepository {
   Future<EntrustedRecord> markHandled(String id) async {
     await Future<void>.delayed(_latency);
     final i = _records.indexWhere((r) => r.id == id);
-    return _records[i] =
-        _records[i].copyWith(status: EntrustedRecordStatus.done);
+    return _records[i] = _records[i].copyWith(
+      status: EntrustedRecordStatus.done,
+    );
   }
 
   @override

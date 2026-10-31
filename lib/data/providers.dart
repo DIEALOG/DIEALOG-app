@@ -15,13 +15,16 @@ import 'repositories/mock/settings_repository.dart';
 import 'repositories/mock/verification_repository.dart';
 import 'repositories/profile_repository.dart';
 import 'repositories/stakeholder_repository.dart';
+import 'repositories/transition_repository.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => SecureTokenStorage(),
 );
 
 /// One fake backend for the whole app, so writes are visible on every screen.
-final mockBackendProvider = Provider<MockBackend>((ref) => MockBackend.seeded());
+final mockBackendProvider = Provider<MockBackend>(
+  (ref) => MockBackend.seeded(),
+);
 
 final dioProvider = Provider<Dio>((ref) {
   final options = BaseOptions(
@@ -54,10 +57,8 @@ final dioProvider = Provider<Dio>((ref) {
 });
 
 final authRepositoryProvider = Provider(
-  (ref) => AuthRepository(
-    ref.watch(dioProvider),
-    ref.watch(tokenStorageProvider),
-  ),
+  (ref) =>
+      AuthRepository(ref.watch(dioProvider), ref.watch(tokenStorageProvider)),
 );
 
 final profileRepositoryProvider = Provider(
@@ -70,6 +71,10 @@ final legacyRepositoryProvider = Provider(
 
 final stakeholderRepositoryProvider = Provider(
   (ref) => StakeholderRepository(ref.watch(dioProvider)),
+);
+
+final transitionRepositoryProvider = Provider(
+  (ref) => TransitionRepository(ref.watch(dioProvider)),
 );
 
 final lastWordRepositoryProvider = Provider(
@@ -88,5 +93,5 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
 );
 
 final afterlifeRepositoryProvider = Provider<AfterlifeRepository>(
-  (ref) => MockAfterlifeRepository(),
+  (ref) => MockAfterlifeRepository(seeded: Env.useMockApi),
 );

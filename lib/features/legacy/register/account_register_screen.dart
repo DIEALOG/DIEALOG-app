@@ -11,6 +11,7 @@ import '../../../data/providers.dart';
 import '../legacy_providers.dart';
 import '../widgets/action_method_sheet.dart';
 import '../widgets/service_sheet.dart';
+import '../../shared/audience_picker.dart';
 import 'register_steps.dart';
 
 /// `10 ~ 13 · 데이터 등록`: 기본 정보 → 처리 지침 → 공개 대상 → 확인.
@@ -57,14 +58,16 @@ class _AccountRegisterScreenState extends ConsumerState<AccountRegisterScreen> {
   }
 
   bool get _canContinue => switch (_step) {
-        0 => _choice != null &&
-            (!_choice!.custom || _customService.text.trim().isNotEmpty) &&
-            _name.text.trim().isNotEmpty,
-        1 => _action != null &&
-            (_action != AccountActionKind.other ||
-                _actionMessage.text.trim().isNotEmpty),
-        _ => true,
-      };
+    0 =>
+      _choice != null &&
+          (!_choice!.custom || _customService.text.trim().isNotEmpty) &&
+          _name.text.trim().isNotEmpty,
+    1 =>
+      _action != null &&
+          (_action != AccountActionKind.other ||
+              _actionMessage.text.trim().isNotEmpty),
+    _ => true,
+  };
 
   Account get _account {
     final choice = _choice!;
@@ -207,38 +210,40 @@ class _AccountRegisterScreenState extends ConsumerState<AccountRegisterScreen> {
   }
 
   Widget _body() => switch (_step) {
-        0 => BasicsStep(
-            choice: _choice,
-            customService: _customService,
-            name: _name,
-            accountId: _accountId,
-            password: _password,
-            dataLocation: _dataLocation,
-            onPickService: _pickService,
-            onChanged: () => setState(() {}),
-          ),
-        1 => ActionStep(
-            kind: _action,
-            message: _actionMessage,
-            onPickKind: _pickAction,
-          ),
-        2 => AudienceStep(
-            people: _people,
-            groups: _groups,
-            onTogglePerson: (id) => setState(() {
-              if (!_people.remove(id)) _people.add(id);
-            }),
-            onToggleGroup: (id) => setState(() {
-              if (!_groups.remove(id)) _groups.add(id);
-            }),
-          ),
-        _ => ConfirmStep(
-            account: _account,
-            serviceLabel: _serviceLabel,
-            people: _people,
-            groups: _groups,
-          ),
-      };
+    0 => BasicsStep(
+      choice: _choice,
+      customService: _customService,
+      name: _name,
+      accountId: _accountId,
+      password: _password,
+      dataLocation: _dataLocation,
+      onPickService: _pickService,
+      onChanged: () => setState(() {}),
+    ),
+    1 => ActionStep(
+      kind: _action,
+      message: _actionMessage,
+      onPickKind: _pickAction,
+    ),
+    2 => AudienceStep(
+      people: _people,
+      groups: _groups,
+      onChanged: (AudienceSelection selection) => setState(() {
+        _people
+          ..clear()
+          ..addAll(selection.people);
+        _groups
+          ..clear()
+          ..addAll(selection.groups);
+      }),
+    ),
+    _ => ConfirmStep(
+      account: _account,
+      serviceLabel: _serviceLabel,
+      people: _people,
+      groups: _groups,
+    ),
+  };
 }
 
 class _Header extends StatelessWidget {
@@ -334,7 +339,10 @@ class _BottomBar extends StatelessWidget {
                   shape: shape,
                   padding: EdgeInsets.zero,
                 ),
-                child: Text('이전', style: AppText.headerAction.copyWith(fontSize: 14)),
+                child: Text(
+                  '이전',
+                  style: AppText.headerAction.copyWith(fontSize: 14),
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -346,7 +354,9 @@ class _BottomBar extends StatelessWidget {
                 onPressed: enabled && !busy ? onNext : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.navy,
-                  disabledBackgroundColor: AppColors.navy.withValues(alpha: 0.38),
+                  disabledBackgroundColor: AppColors.navy.withValues(
+                    alpha: 0.38,
+                  ),
                   foregroundColor: AppColors.white,
                   disabledForegroundColor: AppColors.white,
                   shape: shape,
