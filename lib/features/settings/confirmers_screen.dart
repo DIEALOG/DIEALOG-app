@@ -9,6 +9,7 @@ import '../../data/models/transition_confirmer.dart';
 import '../../data/providers.dart';
 import 'confirmer_add_screen.dart';
 import 'settings_providers.dart';
+import 'invitation_code_sheet.dart';
 
 /// 19-1: who vouches that a death report is true.
 class ConfirmersScreen extends ConsumerWidget {
@@ -79,9 +80,11 @@ class _Body extends ConsumerWidget {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref.read(transitionRepositoryProvider).resend(confirmer.id);
+      final invitation = await ref
+          .read(transitionRepositoryProvider)
+          .resend(confirmer.id);
       ref.invalidate(confirmerBoardProvider);
-      messenger.showSnackBar(const SnackBar(content: Text('초대를 다시 보냈어요.')));
+      if (context.mounted) await showInvitationCodeSheet(context, invitation);
     } on ApiException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -201,7 +204,7 @@ class _ConfirmerRow extends StatelessWidget {
               foregroundColor: pending ? AppColors.progress : AppColors.unread,
             ),
             child: Text(
-              pending ? '재전송' : '해제',
+              pending ? '새 코드 발급' : '해제',
               style: AppText.body.copyWith(
                 color: pending ? AppColors.progress : AppColors.unread,
               ),

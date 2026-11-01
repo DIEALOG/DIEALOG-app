@@ -43,3 +43,22 @@ class TransitionConfirmer {
   bool get isActive =>
       status == ConfirmerStatus.pending || status == ConfirmerStatus.accepted;
 }
+
+/// The invitation token is returned only at issuance, never by listConfirmers.
+class TransitionInvitation {
+  const TransitionInvitation({
+    required this.confirmer,
+    required this.token,
+    required this.expiresAt,
+  });
+
+  factory TransitionInvitation.fromJson(Json json) => TransitionInvitation(
+    confirmer: TransitionConfirmer.fromJson(json['confirmer'] as Json),
+    token: json['invitation_token'] as String? ?? '',
+    expiresAt: DateTime.parse(json['expires_at'] as String),
+  );
+
+  final TransitionConfirmer confirmer;
+  final String token;
+  final DateTime expiresAt;
+}

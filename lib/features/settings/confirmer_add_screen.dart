@@ -9,6 +9,7 @@ import '../../core/widgets/screen_header.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/providers.dart';
 import 'settings_providers.dart';
+import 'invitation_code_sheet.dart';
 
 /// 19-2: pick confirmers from the stakeholders already saved.
 class ConfirmerAddScreen extends ConsumerStatefulWidget {
@@ -35,7 +36,9 @@ class _ConfirmerAddScreenState extends ConsumerState<ConfirmerAddScreen> {
     final repository = ref.read(transitionRepositoryProvider);
     try {
       for (final person in people) {
-        await repository.invite(person);
+        final invitation = await repository.invite(person);
+        if (!mounted) return;
+        await showInvitationCodeSheet(context, invitation);
       }
       ref.invalidate(confirmerBoardProvider);
       ref.invalidate(settingsOverviewProvider);
@@ -44,6 +47,7 @@ class _ConfirmerAddScreenState extends ConsumerState<ConfirmerAddScreen> {
       if (!mounted) return;
       setState(() => _submitting = false);
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      ref.invalidate(confirmerBoardProvider);
     }
   }
 
@@ -123,10 +127,7 @@ class _ConfirmerAddScreenState extends ConsumerState<ConfirmerAddScreen> {
                 onPressed: () => _submit(data),
               ),
               const SizedBox(height: 12),
-              Text(
-                '확인자로 추가해도 데이터 열람 권한은 바뀌지 않습니다.',
-                style: AppText.helper,
-              ),
+              Text('확인자로 추가해도 데이터 열람 권한은 바뀌지 않습니다.', style: AppText.helper),
             ],
           ),
         ),

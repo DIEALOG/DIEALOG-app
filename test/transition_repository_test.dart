@@ -27,20 +27,22 @@ void main() {
       ),
     );
     final invited = await transitions.invite(person);
-    expect(invited.stakeholderId, person.id);
-    expect(invited.status, ConfirmerStatus.pending);
+    expect(invited.confirmer.stakeholderId, person.id);
+    expect(invited.confirmer.status, ConfirmerStatus.pending);
+    expect(invited.token, isNotEmpty);
     expect(
       (await transitions.listConfirmers()).any(
-        (item) => item.id == invited.id && item.isActive,
+        (item) => item.id == invited.confirmer.id && item.isActive,
       ),
       isTrue,
     );
 
-    await transitions.resend(invited.id);
-    await transitions.revoke(invited.id);
+    final resent = await transitions.resend(invited.confirmer.id);
+    expect(resent.token, isNot(invited.token));
+    await transitions.revoke(invited.confirmer.id);
     expect(
       (await transitions.listConfirmers())
-          .firstWhere((item) => item.id == invited.id)
+          .firstWhere((item) => item.id == invited.confirmer.id)
           .isActive,
       isFalse,
     );

@@ -18,7 +18,7 @@ class TransitionRepository {
     return parseList(response.data, TransitionConfirmer.fromJson);
   }
 
-  Future<TransitionConfirmer> invite(Stakeholder person) async {
+  Future<TransitionInvitation> invite(Stakeholder person) async {
     final response = await guardApi(
       () => _dio.post<Json>(
         _base,
@@ -30,15 +30,16 @@ class TransitionRepository {
         }),
       ),
     );
-    return TransitionConfirmer.fromJson(response.data!['confirmer'] as Json);
+    return TransitionInvitation.fromJson(response.data!);
   }
 
   Future<void> revoke(String id) async {
     await guardApi(() => _dio.delete<Json>('$_base/$id'));
   }
 
-  Future<void> resend(String id) async {
-    await guardApi(() => _dio.post<Json>('$_base/$id/resend'));
+  Future<TransitionInvitation> resend(String id) async {
+    final response = await guardApi(() => _dio.post<Json>('$_base/$id/resend'));
+    return TransitionInvitation.fromJson(response.data!);
   }
 
   Future<TransitionPolicy> fetchPolicy() async {

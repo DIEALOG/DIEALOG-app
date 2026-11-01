@@ -9,6 +9,7 @@ import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
+import '../settings/invitation_code_sheet.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../legacy/legacy_providers.dart';
@@ -140,9 +141,11 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
     try {
       final repo = ref.read(transitionRepositoryProvider);
       if (confirmer == null) {
-        await repo.invite(widget.person!);
+        final invitation = await repo.invite(widget.person!);
+        if (mounted) await showInvitationCodeSheet(context, invitation);
       } else if (confirmer.status == ConfirmerStatus.pending) {
-        await repo.resend(confirmer.id);
+        final invitation = await repo.resend(confirmer.id);
+        if (mounted) await showInvitationCodeSheet(context, invitation);
       } else {
         await repo.revoke(confirmer.id);
       }
@@ -237,7 +240,7 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
                         confirmer == null
                             ? '확인자로 초대'
                             : confirmer.status == ConfirmerStatus.pending
-                            ? '초대 다시 보내기'
+                            ? '새 초대 코드 발급'
                             : '확인자에서 해제',
                       ),
                     ),
