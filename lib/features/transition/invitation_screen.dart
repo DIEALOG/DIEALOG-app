@@ -7,6 +7,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../data/models/confirmer_access.dart';
 import '../../data/providers.dart';
+import 'confirmer_cases_screen.dart';
 
 class InvitationScreen extends ConsumerStatefulWidget {
   const InvitationScreen({super.key, this.initialToken});
@@ -156,6 +157,18 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
                 SelectableText(_recoveryToken!, style: AppText.body),
               ],
               const Spacer(),
+              if (_recoveryToken == null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: PrimaryButton(
+                    label: '내게 온 요청 보기',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ConfirmerCasesScreen(),
+                      ),
+                    ),
+                  ),
+                ),
               PrimaryButton(
                 label: '닫기',
                 onPressed: () => Navigator.of(context).pop(),

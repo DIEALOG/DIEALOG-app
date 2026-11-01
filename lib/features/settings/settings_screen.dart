@@ -12,6 +12,7 @@ import 'policy_sheets.dart';
 import 'profile_screen.dart';
 import 'settings_providers.dart';
 import '../transition/invitation_screen.dart';
+import '../transition/confirmer_cases_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -159,6 +160,14 @@ class _Body extends ConsumerWidget {
             label: '확인자 초대 코드 입력',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const InvitationScreen()),
+            ),
+          ),
+          _ValueRow(
+            label: '내게 온 사후 전환 요청',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ConfirmerCasesScreen(),
+              ),
             ),
           ),
           const _SectionLabel('계정'),

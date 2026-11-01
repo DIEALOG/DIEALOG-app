@@ -34,6 +34,8 @@ class MockBackend {
   final _aliveChecks = <Json>[];
   final _invitationTokens = <String, String>{};
   final _confirmerTokens = <String, String>{};
+  final _cases = <Json>[];
+  final _confirmations = <Json>[];
 
   late Json _user;
   late Json _config;
@@ -50,7 +52,12 @@ class MockBackend {
 
   // --------------------------------------------------------------- dispatch
 
-  MockResult handle(String method, String path, Object? body) {
+  MockResult handle(
+    String method,
+    String path,
+    Object? body, {
+    Map<String, dynamic> headers = const {},
+  }) {
     final segments = path.split('?').first.split('/')
       ..removeWhere((s) => s.isEmpty);
     final data = body is Json ? body : const <String, dynamic>{};
@@ -96,6 +103,84 @@ class MockBackend {
       final confirmer = _requireConfirmer(confirmerId);
       confirmer['status'] = 'declined';
       return const MockResult(200, {'message': 'invitation declined'});
+    }
+
+    if (match(['transition', 'confirmer', 'cases'])) {
+      final confirmer = _requireConfirmerToken(headers);
+      if (verb == 'GET') {
+        return MockResult(200, [
+          for (final item in _cases)
+            if (item['user_id'] == confirmer['user_id'] &&
+                item['status'] != 'cancelled')
+              item,
+        ]);
+      }
+      if (verb == 'POST') {
+        if (_cases.any(
+          (item) =>
+              item['user_id'] == confirmer['user_id'] &&
+              item['status'] != 'cancelled' &&
+              item['status'] != 'confirmed',
+        )) {
+          throw const MockApiError(400, '이미 진행 중인 전환 절차가 있어요.');
+        }
+        final item = <String, dynamic>{
+          'id': _id('case'),
+          'user_id': confirmer['user_id'],
+          'status': 'pending_confirmation',
+          'minimum_confirmers_snapshot': _policy['minimum_confirmers'],
+          'waiting_period_days_snapshot': _policy['waiting_period_days'],
+          'requested_at': _now(),
+          'created_at': _now(),
+          'updated_at': _now(),
+        };
+        _cases.add(item);
+        return MockResult(201, item);
+      }
+    }
+    if (match(['transition', 'confirmer', 'cases', '*'])) {
+      final confirmer = _requireConfirmerToken(headers);
+      final item = _requireCase(at(3), confirmer['user_id'] as String);
+      if (verb == 'GET') return MockResult(200, item);
+    }
+    if (verb == 'POST' &&
+        match(['transition', 'confirmer', 'cases', '*', 'confirmations'])) {
+      final confirmer = _requireConfirmerToken(headers);
+      final item = _requireCase(at(3), confirmer['user_id'] as String);
+      if (item['status'] != 'pending_confirmation') {
+        throw const MockApiError(400, '확인 중인 절차에만 응답할 수 있어요.');
+      }
+      final decision = data['decision'] as String? ?? '';
+      if (!['agree', 'disagree', 'abstain'].contains(decision)) {
+        throw const MockApiError(400, '확인 결과가 올바르지 않아요.');
+      }
+      _confirmations.removeWhere(
+        (entry) =>
+            entry['transition_case_id'] == item['id'] &&
+            entry['transition_confirmer_id'] == confirmer['id'],
+      );
+      final response = <String, dynamic>{
+        'id': _id('confirmation'),
+        'transition_case_id': item['id'],
+        'transition_confirmer_id': confirmer['id'],
+        'decision': decision,
+        'comment': data['comment'],
+        'responded_at': _now(),
+        'created_at': _now(),
+      };
+      _confirmations.add(response);
+      final agreed = _confirmations
+          .where(
+            (entry) =>
+                entry['transition_case_id'] == item['id'] &&
+                entry['decision'] == 'agree',
+          )
+          .length;
+      if (agreed >= (item['minimum_confirmers_snapshot'] as int)) {
+        item['status'] = 'waiting_period';
+        item['waiting_started_at'] = _now();
+      }
+      return MockResult(200, response);
     }
 
     // profile
@@ -596,6 +681,25 @@ class MockBackend {
   Json _requireConfirmer(String id) =>
       _find(_confirmers, id) ??
       (throw const MockApiError(404, 'confirmer not found'));
+
+  Json _requireConfirmerToken(Map<String, dynamic> headers) {
+    final token = headers['X-Confirmer-Token'] as String? ?? '';
+    final id = _confirmerTokens[token];
+    if (id == null) throw const MockApiError(401, '확인자 인증이 필요해요.');
+    final confirmer = _requireConfirmer(id);
+    if (confirmer['status'] != 'accepted') {
+      throw const MockApiError(403, '수락된 확인자가 아니에요.');
+    }
+    return confirmer;
+  }
+
+  Json _requireCase(String id, String ownerUserId) {
+    final item = _find(_cases, id);
+    if (item == null || item['user_id'] != ownerUserId) {
+      throw const MockApiError(404, '전환 절차를 찾을 수 없어요.');
+    }
+    return item;
+  }
 
   // ------------------------------------------------------------------ seed
 

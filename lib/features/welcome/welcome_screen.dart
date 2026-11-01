@@ -5,6 +5,7 @@ import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/primary_button.dart';
+import '../transition/confirmer_cases_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -45,6 +46,14 @@ class WelcomeScreen extends StatelessWidget {
               TextButton(
                 onPressed: () => context.push(Routes.invitation),
                 child: Text('확인자 초대 코드가 있어요', style: AppText.link),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ConfirmerCasesScreen(),
+                  ),
+                ),
+                child: Text('내게 온 사후 전환 요청', style: AppText.link),
               ),
             ],
           ),

@@ -9,7 +9,7 @@ import 'mock_backend.dart';
 /// takes to go live.
 class MockApiInterceptor extends Interceptor {
   MockApiInterceptor({MockBackend? backend, this.latency = _defaultLatency})
-      : backend = backend ?? MockBackend.seeded();
+    : backend = backend ?? MockBackend.seeded();
 
   static const _defaultLatency = Duration(milliseconds: 220);
 
@@ -23,7 +23,12 @@ class MockApiInterceptor extends Interceptor {
   ) async {
     await Future<void>.delayed(latency);
     try {
-      final result = backend.handle(options.method, options.path, options.data);
+      final result = backend.handle(
+        options.method,
+        options.path,
+        options.data,
+        headers: options.headers,
+      );
       handler.resolve(
         Response<dynamic>(
           requestOptions: options,
