@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env.dart';
 import '../core/network/auth_interceptor.dart';
+import '../core/storage/local_prefs.dart';
 import '../core/storage/token_storage.dart';
 import '../features/auth/auth_controller.dart';
 import 'mock/mock_api_interceptor.dart';
@@ -19,6 +20,10 @@ import 'repositories/transition_repository.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => SecureTokenStorage(),
+);
+
+final localSettingsStoreProvider = Provider<LocalSettingsStore>(
+  (ref) => SecureLocalSettingsStore(),
 );
 
 /// One fake backend for the whole app, so writes are visible on every screen.

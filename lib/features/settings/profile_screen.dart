@@ -9,7 +9,7 @@ import '../../core/theme/app_text.dart';
 import '../../data/models/profile.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
-import 'settings_screen.dart';
+import 'settings_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
