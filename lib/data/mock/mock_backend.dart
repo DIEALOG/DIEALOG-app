@@ -360,19 +360,49 @@ class MockBackend {
       });
     }
     if (match(['transition', 'protected', 'alive-checks'])) {
-      if (verb == 'GET') return MockResult(200, List<Json>.from(_aliveChecks));
+      if (verb == 'GET') {
+        if (_aliveChecks.isEmpty) _scheduleAliveCheck();
+        return MockResult(200, List<Json>.from(_aliveChecks.reversed));
+      }
       if (verb == 'POST') return _scheduleAliveCheck();
     }
     if (verb == 'POST' &&
         match(['transition', 'protected', 'alive-checks', '*', 'respond'])) {
       final check = _find(_aliveChecks, at(3));
       if (check == null) throw const MockApiError(404, 'alive check not found');
+      if (check['status'] == 'responded' || check['status'] == 'cancelled') {
+        throw const MockApiError(400, '이미 종료된 생존 확인이에요.');
+      }
       check['status'] = 'responded';
       check['responded_at'] = _now();
+      _scheduleAliveCheck();
       return MockResult(200, check);
     }
     if (verb == 'GET' && match(['transition', 'protected', 'cases'])) {
-      return const MockResult(200, <Json>[]);
+      return MockResult(200, List<Json>.from(_cases));
+    }
+    if (match(['transition', 'protected', 'cases', '*'])) {
+      final item = _requireCase(at(3), _user['id'] as String);
+      if (verb == 'GET') return MockResult(200, item);
+    }
+    if (verb == 'POST' &&
+        match(['transition', 'protected', 'cases', '*', 'cancel'])) {
+      final item = _requireCase(at(3), _user['id'] as String);
+      if (item['status'] != 'pending_confirmation' &&
+          item['status'] != 'waiting_period') {
+        throw const MockApiError(400, '취소할 수 없는 전환 절차예요.');
+      }
+      item['status'] = 'cancelled';
+      item['cancelled_at'] = _now();
+      return MockResult(200, item);
+    }
+    if (verb == 'GET' &&
+        match(['transition', 'protected', 'cases', '*', 'confirmations'])) {
+      final item = _requireCase(at(3), _user['id'] as String);
+      return MockResult(200, [
+        for (final entry in _confirmations)
+          if (entry['transition_case_id'] == item['id']) entry,
+      ]);
     }
 
     throw const MockApiError(404, '아직 준비되지 않은 요청이에요.');
@@ -511,6 +541,15 @@ class MockBackend {
   }
 
   MockResult _scheduleAliveCheck() {
+    if (_aliveChecks.isNotEmpty) {
+      final latest = _aliveChecks.last;
+      if (latest['status'] == 'scheduled' || latest['status'] == 'pending') {
+        return MockResult(200, latest);
+      }
+      if (latest['status'] == 'overdue') {
+        throw const MockApiError(400, '기한이 지난 생존 확인에 먼저 응답해 주세요.');
+      }
+    }
     final interval = _policy['alive_check_interval_days'] as int;
     final check = <String, dynamic>{
       'id': _id('alive-check'),

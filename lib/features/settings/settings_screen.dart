@@ -13,6 +13,7 @@ import 'profile_screen.dart';
 import 'settings_providers.dart';
 import '../transition/invitation_screen.dart';
 import '../transition/confirmer_cases_screen.dart';
+import '../transition/owner_transition_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -127,6 +128,14 @@ class _Body extends ConsumerWidget {
             label: '생존 확인 주기',
             value: '${policy.aliveCheckIntervalDays}일',
             onTap: () => showAliveCheckIntervalSheet(context, policy),
+          ),
+          _ValueRow(
+            label: '사후 전환 상태와 생존 확인',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const OwnerTransitionScreen(),
+              ),
+            ),
           ),
           const _SectionLabel('알림'),
           _SwitchRow(

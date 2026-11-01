@@ -5,12 +5,16 @@ import '../models/json.dart';
 import '../models/stakeholder.dart';
 import '../models/transition_confirmer.dart';
 import '../models/transition_policy.dart';
+import '../models/transition_case.dart';
+import '../models/alive_check.dart';
 
 class TransitionRepository {
   TransitionRepository(this._dio);
 
   static const _base = '/transition/protected/confirmers';
   static const _policy = '/transition/protected/policy';
+  static const _cases = '/transition/protected/cases';
+  static const _checks = '/transition/protected/alive-checks';
   final Dio _dio;
 
   Future<List<TransitionConfirmer>> listConfirmers() async {
@@ -64,5 +68,46 @@ class TransitionRepository {
       ),
     );
     return TransitionPolicy.fromJson(response.data!);
+  }
+
+  Future<List<TransitionCase>> listCases() async {
+    final response = await guardApi(() => _dio.get<List<dynamic>>(_cases));
+    return parseList(response.data, TransitionCase.fromJson);
+  }
+
+  Future<TransitionCase> getCase(String id) async {
+    final response = await guardApi(() => _dio.get<Json>('$_cases/$id'));
+    return TransitionCase.fromJson(response.data!);
+  }
+
+  Future<TransitionCase> cancelCase(String id) async {
+    final response = await guardApi(
+      () => _dio.post<Json>('$_cases/$id/cancel'),
+    );
+    return TransitionCase.fromJson(response.data!);
+  }
+
+  Future<List<TransitionConfirmation>> listConfirmations(String caseId) async {
+    final response = await guardApi(
+      () => _dio.get<List<dynamic>>('$_cases/$caseId/confirmations'),
+    );
+    return parseList(response.data, TransitionConfirmation.fromJson);
+  }
+
+  Future<List<AliveCheck>> listAliveChecks() async {
+    final response = await guardApi(() => _dio.get<List<dynamic>>(_checks));
+    return parseList(response.data, AliveCheck.fromJson);
+  }
+
+  Future<AliveCheck> scheduleAliveCheck() async {
+    final response = await guardApi(() => _dio.post<Json>(_checks));
+    return AliveCheck.fromJson(response.data!);
+  }
+
+  Future<AliveCheck> respondAliveCheck(String id) async {
+    final response = await guardApi(
+      () => _dio.post<Json>('$_checks/$id/respond'),
+    );
+    return AliveCheck.fromJson(response.data!);
   }
 }
