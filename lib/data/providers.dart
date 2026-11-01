@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/config/env.dart';
+import '../core/lock/biometric_auth.dart';
 import '../core/network/auth_interceptor.dart';
 import '../core/storage/local_prefs.dart';
 import '../core/storage/token_storage.dart';
@@ -16,6 +17,8 @@ import 'repositories/legacy_repository.dart';
 import 'repositories/mock/afterlife_repository.dart';
 import 'repositories/mock/settings_repository.dart';
 import 'repositories/mock/verification_repository.dart';
+import 'repositories/notification_repository.dart';
+import 'repositories/phone_verification_repository.dart';
 import 'repositories/profile_repository.dart';
 import 'repositories/stakeholder_repository.dart';
 import 'repositories/transition_repository.dart';
@@ -97,6 +100,12 @@ final confirmerRepositoryProvider = Provider(
   (ref) => ConfirmerRepository(ref.watch(dioProvider)),
 );
 
+final notificationRepositoryProvider = Provider(
+  (ref) => NotificationRepository(ref.watch(dioProvider)),
+);
+
+final biometricAuthProvider = Provider<BiometricAuth>((ref) => BiometricAuth());
+
 final lastWordRepositoryProvider = Provider(
   (ref) => LastWordRepository(ref.watch(dioProvider)),
 );
@@ -105,7 +114,7 @@ final lastWordRepositoryProvider = Provider(
 // implementation here; callers only see the interface.
 
 final verificationRepositoryProvider = Provider<VerificationRepository>(
-  (ref) => MockVerificationRepository(),
+  (ref) => PhoneVerificationRepository(ref.watch(dioProvider)),
 );
 
 final settingsRepositoryProvider = Provider<SettingsRepository>(

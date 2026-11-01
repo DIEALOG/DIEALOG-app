@@ -17,7 +17,9 @@ import '../../features/legacy/account_edit_screen.dart';
 import '../../features/legacy/register/account_register_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
+import '../../features/notifications/notifications_screen.dart';
 import '../../features/transition/invitation_screen.dart';
+import '../../features/transition/stakeholder_task_result_screen.dart';
 import 'routes.dart';
 
 export 'routes.dart';
@@ -36,7 +38,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         AuthStatus.signedOut =>
           AuthPaths.isPublic(location) ? null : Routes.welcome,
         AuthStatus.signedIn =>
-          (location.startsWith('/signup') || location == Routes.invitation)
+          (location.startsWith('/signup') ||
+                  location == Routes.invitation ||
+                  location == Routes.taskResult)
               ? null
               : (location == Routes.splash || AuthPaths.isPublic(location)
                     ? Routes.home
@@ -60,6 +64,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.invitation,
         builder: (context, state) =>
             InvitationScreen(initialToken: state.uri.queryParameters['token']),
+      ),
+      GoRoute(
+        path: Routes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: Routes.taskResult,
+        builder: (context, state) => StakeholderTaskResultScreen(
+          initialToken: state.uri.queryParameters['token'],
+        ),
       ),
       GoRoute(
         path: Routes.signupName,

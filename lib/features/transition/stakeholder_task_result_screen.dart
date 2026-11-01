@@ -8,7 +8,9 @@ import '../../core/widgets/primary_button.dart';
 import '../../data/providers.dart';
 
 class StakeholderTaskResultScreen extends ConsumerStatefulWidget {
-  const StakeholderTaskResultScreen({super.key});
+  const StakeholderTaskResultScreen({super.key, this.initialToken});
+
+  final String? initialToken;
 
   @override
   ConsumerState<StakeholderTaskResultScreen> createState() =>
@@ -17,7 +19,7 @@ class StakeholderTaskResultScreen extends ConsumerStatefulWidget {
 
 class _StakeholderTaskResultScreenState
     extends ConsumerState<StakeholderTaskResultScreen> {
-  final code = TextEditingController();
+  late final code = TextEditingController(text: widget.initialToken ?? '');
   final message = TextEditingController();
   bool? success;
   bool busy = false;

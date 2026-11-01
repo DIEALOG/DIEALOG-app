@@ -7,6 +7,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/app_icon.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
+import '../transition/confirmer_cases_screen.dart';
 import 'group_edit_screen.dart';
 import 'people_providers.dart';
 import 'stakeholder_edit_screen.dart';
@@ -171,18 +172,36 @@ class PeopleScreen extends ConsumerWidget {
 
 class _RequestEntry extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 14),
-    decoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: AppColors.divider)),
+  Widget build(BuildContext context) => InkWell(
+    onTap: () => Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ConfirmerCasesScreen()),
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('내게 온 요청', style: AppText.listTitle.copyWith(fontSize: 18)),
-        const SizedBox(height: 4),
-        Text('확인자 초대 링크에서 요청을 확인할 수 있어요.', style: AppText.listCaption),
-      ],
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '내게 온 요청',
+                  style: AppText.listTitle.copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '나를 확인자로 지정한 사람과 사후 전환 요청을 확인해요.',
+                  style: AppText.listCaption,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, size: 18, color: AppColors.chevron),
+        ],
+      ),
     ),
   );
 }

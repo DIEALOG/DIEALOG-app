@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Switch states the server cannot report back.
 ///
 /// The security pair is also sent to `PUT /profile/protected/config`, but
-/// nothing returns it, so the device copy is what the screen shows. The
-/// notification trio has no endpoint at all and stays local.
+/// nothing returns it, so the device copy is what the screen shows. Push
+/// delivery is still missing, so the notification switches stay local.
 class LocalSettings {
   const LocalSettings({
     this.lockByFaceId = false,

@@ -39,6 +39,9 @@ class MockBackend {
   final _tasks = <Json>[];
   final _taskTokens = <String, ({String taskId, String stakeholderId})>{};
   final _reportedTaskTokens = <String, bool>{};
+  final _notifications = <Json>[];
+  final _owners = <String, Json>{};
+  final _otp = <String, String>{};
 
   late Json _user;
   late Json _config;
@@ -89,6 +92,7 @@ class MockBackend {
       final confirmer = _requireConfirmer(confirmerId);
       confirmer['status'] = 'accepted';
       confirmer['accepted_at'] = _now();
+      _notifyOwnerOfInvitation(confirmer, accepted: true);
       final authToken = _id('confirmer-auth');
       _confirmerTokens[authToken] = confirmerId;
       return MockResult(200, {
@@ -105,6 +109,7 @@ class MockBackend {
       }
       final confirmer = _requireConfirmer(confirmerId);
       confirmer['status'] = 'declined';
+      _notifyOwnerOfInvitation(confirmer, accepted: false);
       return const MockResult(200, {'message': 'invitation declined'});
     }
 
@@ -342,8 +347,17 @@ class MockBackend {
       }
     }
     if (match(['transition', 'protected', 'confirmers'])) {
-      if (verb == 'GET') return MockResult(200, List<Json>.from(_confirmers));
+      if (verb == 'GET') {
+        return MockResult(200, [
+          for (final item in _confirmers)
+            if (item['user_id'] == _user['id']) item,
+        ]);
+      }
       if (verb == 'POST') return _inviteConfirmer(data);
+    }
+    if (verb == 'GET' &&
+        match(['transition', 'protected', 'confirmers', 'designating-users'])) {
+      return _listDesignatingUsers();
     }
     if (verb == 'DELETE' &&
         match(['transition', 'protected', 'confirmers', '*'])) {
@@ -498,6 +512,48 @@ class MockBackend {
       task['completed_at'] = _now();
       task['failure_reason'] = data['success'] == true ? null : data['message'];
       return MockResult(200, task);
+    }
+
+    if (verb == 'POST' && match(['phone-verification', 'send'])) {
+      final phone = data['phoneNumber'] as String? ?? '';
+      if (phone.isEmpty) {
+        throw const MockApiError(400, '전화번호를 입력해 주세요.');
+      }
+      _otp[phone] = 'sent';
+      return const MockResult(200, {'message': '인증번호를 보냈어요.'});
+    }
+    if (verb == 'POST' && match(['phone-verification', 'verify'])) {
+      final phone = data['phoneNumber'] as String? ?? '';
+      final code = data['code'] as String? ?? '';
+      if (!_otp.containsKey(phone)) {
+        throw const MockApiError(401, '인증번호를 먼저 받아 주세요.');
+      }
+      if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+        throw const MockApiError(401, '인증번호가 올바르지 않아요.');
+      }
+      _otp.remove(phone);
+      return const MockResult(200, {'message': '인증됐어요.'});
+    }
+
+    if (verb == 'GET' && match(['notification', 'protected'])) {
+      return MockResult(200, List<Json>.from(_notifications.reversed));
+    }
+    if (verb == 'GET' &&
+        match(['notification', 'protected', 'unread-count'])) {
+      return MockResult(200, {
+        'count': _notifications.where((item) => item['is_read'] != true).length,
+      });
+    }
+    if (match(['notification', 'protected', '*'])) {
+      final item = _findNotification(at(2));
+      if (verb == 'PATCH') {
+        item['is_read'] = true;
+        return MockResult(200, {'message': 'ok'});
+      }
+      if (verb == 'DELETE') {
+        _notifications.remove(item);
+        return MockResult(200, {'message': 'ok'});
+      }
     }
 
     throw const MockApiError(404, '아직 준비되지 않은 요청이에요.');
@@ -852,6 +908,113 @@ class MockBackend {
     return item;
   }
 
+  MockResult _listDesignatingUsers() {
+    final email = _user['email'] as String?;
+    final phone = _user['phone_number'] as String?;
+    final seen = <String>{};
+    final items = <Json>[];
+    for (final confirmer in _confirmers) {
+      final status = confirmer['status'] as String?;
+      if (status != 'pending' && status != 'accepted') continue;
+      final ownerId = confirmer['user_id'] as String?;
+      if (ownerId == null || ownerId == _user['id'] || seen.contains(ownerId)) {
+        continue;
+      }
+      final matchesEmail =
+          email != null &&
+          email.isNotEmpty &&
+          confirmer['email'] == email;
+      final matchesPhone =
+          phone != null &&
+          phone.isNotEmpty &&
+          confirmer['phone'] == phone;
+      if (!matchesEmail && !matchesPhone) continue;
+      seen.add(ownerId);
+      final owner = _owners[ownerId];
+      if (owner != null) items.add(owner);
+    }
+    return MockResult(200, items);
+  }
+
+  Json _findNotification(String id) {
+    for (final item in _notifications) {
+      if ('${item['id']}' == id) return item;
+    }
+    throw const MockApiError(404, '알림을 찾을 수 없어요.');
+  }
+
+  void _pushNotification({
+    required String type,
+    required String message,
+    Json metadata = const {},
+    bool isRead = false,
+  }) {
+    _notifications.add({
+      'id': _notifications.length + 1,
+      'receiver_id': _user['id'],
+      'type': type,
+      'message': message,
+      'metadata': metadata,
+      'is_read': isRead,
+      'created_at': _now(),
+    });
+  }
+
+  void _notifyOwnerOfInvitation(Json confirmer, {required bool accepted}) {
+    final name = confirmer['name'] as String? ?? '확인자';
+    _pushNotification(
+      type: 'invite',
+      message: accepted
+          ? '$name님이 사망 확인자 초대를 수락했습니다.'
+          : '$name님이 사망 확인자 초대를 거절했습니다.',
+      metadata: {
+        'type': accepted
+            ? 'confirmer_invitation_accepted'
+            : 'confirmer_invitation_declined',
+        'confirmer_id': confirmer['id'],
+        'confirmer_name': name,
+      },
+    );
+  }
+
+  void _seedIncomingDesignation() {
+    final ownerId = _id('user');
+    _owners[ownerId] = {
+      'id': ownerId,
+      'name': '최동훈',
+      'email': 'donghun.choi@example.com',
+      'phone_number': '01088887777',
+      'profile_image_path': null,
+      'created_at': _now(),
+    };
+    final confirmerId = _id('confirmer');
+    _confirmers.add({
+      'id': confirmerId,
+      'user_id': ownerId,
+      'name': _user['name'],
+      'email': _user['email'],
+      'phone': _user['phone_number'],
+      'status': 'pending',
+      'invited_at': _now(),
+      'invite_expires_at': _daysFromNow(7),
+      'created_at': _now(),
+      'updated_at': _now(),
+    });
+    final token = _id('invite');
+    _invitationTokens[token] = confirmerId;
+    _pushNotification(
+      type: 'invite',
+      message: '최동훈님이 회원님을 사망 확인자로 지정하였습니다.',
+      metadata: {
+        'type': 'confirmer_invitation',
+        'confirmer_id': confirmerId,
+        'owner_id': ownerId,
+        'owner_name': '최동훈',
+        'invitation_token': token,
+      },
+    );
+  }
+
   // ------------------------------------------------------------------ seed
 
   void _seed() {
@@ -1024,5 +1187,6 @@ class MockBackend {
         'updated_at': _now(),
       },
     ]);
+    _seedIncomingDesignation();
   }
 }

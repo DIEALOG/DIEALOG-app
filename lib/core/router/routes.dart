@@ -11,6 +11,8 @@ abstract final class Routes {
   static const signupComplete = '/signup/complete';
   static const home = '/home';
   static const invitation = '/invitation';
+  static const notifications = '/notifications';
+  static const taskResult = '/task-result';
 
   static const accountNew = '/account/new';
   static const accountDetail = '/account/:legacyId/:accountId';
@@ -28,5 +30,6 @@ abstract final class AuthPaths {
       location == Routes.welcome ||
       location == Routes.login ||
       location == Routes.invitation ||
+      location == Routes.taskResult ||
       (location.startsWith('/signup') && location != Routes.signupComplete);
 }

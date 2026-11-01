@@ -1,4 +1,5 @@
-// MOCK: the backend has no email verification / OTP endpoint yet.
+// Kept as the interface the signup flow talks to. The live implementation
+// is PhoneVerificationRepository; this mock is for unit tests only.
 
 abstract interface class VerificationRepository {
   Future<void> sendCode(String email);

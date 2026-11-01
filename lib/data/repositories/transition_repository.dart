@@ -8,6 +8,7 @@ import '../models/transition_policy.dart';
 import '../models/transition_case.dart';
 import '../models/alive_check.dart';
 import '../models/account_handling_task.dart';
+import '../models/designating_user.dart';
 
 class TransitionRepository {
   TransitionRepository(this._dio);
@@ -117,6 +118,15 @@ class TransitionRepository {
       () => _dio.get<List<dynamic>>('$_cases/$caseId/tasks'),
     );
     return parseList(response.data, AccountHandlingTask.fromJson);
+  }
+
+  Future<List<DesignatingUser>> listDesignatingUsers() async {
+    final response = await guardApi(
+      () => _dio.get<List<dynamic>>(
+        '/transition/protected/confirmers/designating-users',
+      ),
+    );
+    return parseList(response.data, DesignatingUser.fromJson);
   }
 
   Future<AccountHandlingRequestResponse> requestTask(String taskId) async {

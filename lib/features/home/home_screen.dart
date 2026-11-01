@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
+import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/app_icon.dart';
@@ -13,6 +15,7 @@ import '../../data/models/transition_confirmer.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/mock/afterlife_repository.dart';
 import '../afterlife/afterlife_screen.dart';
+import '../notifications/notification_providers.dart';
 import 'greeting.dart';
 
 class HomeSnapshot {
@@ -151,14 +154,15 @@ class _HomeBody extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerWidget {
   const _Header({required this.name});
 
   final String name;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final initial = firstCharacter(name);
+    final unread = ref.watch(unreadNotificationCountProvider).value ?? 0;
     return Row(
       children: [
         Expanded(
@@ -175,22 +179,23 @@ class _Header extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: () => context.push(Routes.notifications),
               icon: const AppIcon('assets/icons/icon_bell.svg', size: 24),
             ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: AppColors.unread,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.bg),
+            if (unread > 0)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: AppColors.unread,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.bg),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(width: 4),

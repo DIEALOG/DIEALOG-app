@@ -6,8 +6,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../data/models/confirmer_access.dart';
+import '../../data/models/designating_user.dart';
 import '../../data/models/transition_case.dart';
 import '../../data/providers.dart';
+import 'invitation_screen.dart';
 
 class ConfirmerInbox {
   const ConfirmerInbox(this.session, this.cases, this.error);
@@ -15,6 +17,11 @@ class ConfirmerInbox {
   final List<TransitionCase> cases;
   final String? error;
 }
+
+final designatingUsersProvider =
+    FutureProvider.autoDispose<List<DesignatingUser>>(
+      (ref) => ref.watch(transitionRepositoryProvider).listDesignatingUsers(),
+    );
 
 final confirmerInboxProvider = FutureProvider.autoDispose<List<ConfirmerInbox>>(
   (ref) async {
@@ -43,6 +50,7 @@ class ConfirmerCasesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final inbox = ref.watch(confirmerInboxProvider);
+    final owners = ref.watch(designatingUsersProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('내게 온 요청'), centerTitle: true),
       body: inbox.when(
@@ -54,20 +62,85 @@ class ConfirmerCasesScreen extends ConsumerWidget {
           ),
         ),
         data: (entries) => RefreshIndicator(
-          onRefresh: () async => ref.refresh(confirmerInboxProvider.future),
+          onRefresh: () async {
+            await Future.wait([
+              ref.refresh(designatingUsersProvider.future),
+              ref.refresh(confirmerInboxProvider.future),
+            ]);
+          },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
             children: [
               Text('내게 온 요청', style: AppText.screenTitle),
               const SizedBox(height: 10),
-              Text('수락한 확인자 자격으로 사후 전환 요청을 확인할 수 있어요.', style: AppText.body),
+              Text(
+                '나를 확인자로 지정한 사람과, 수락한 자격으로 온 사후 전환 요청을 확인해요.',
+                style: AppText.body,
+              ),
+              const SizedBox(height: 24),
+              Text('받은 초대', style: AppText.section),
+              owners.when(
+                loading: () => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+                error: (error, _) => Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    error is ApiException
+                        ? error.message
+                        : '지정한 사람을 불러오지 못했어요.',
+                    style: AppText.body,
+                  ),
+                ),
+                data: (people) => people.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          '아직 나를 확인자로 지정한 사람이 없어요.',
+                          style: AppText.body,
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (final person in people)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(person.name, style: AppText.listTitle),
+                              subtitle: Text(
+                                '확인자로 지정됨',
+                                style: AppText.listCaption,
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.muted,
+                              ),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const InvitationScreen(),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const InvitationScreen(),
+                  ),
+                ),
+                child: const Text('초대 코드 입력'),
+              ),
+              const SizedBox(height: 16),
+              Text('확인할 요청', style: AppText.section),
               if (entries.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 60),
+                  padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    '수락한 확인자 초대가 없어요.\n먼저 초대 코드를 입력해 주세요.',
+                    '수락한 확인자 초대가 없어요. 초대 코드를 입력해 주세요.',
                     style: AppText.body,
-                    textAlign: TextAlign.center,
                   ),
                 ),
               for (final entry in entries) ...[

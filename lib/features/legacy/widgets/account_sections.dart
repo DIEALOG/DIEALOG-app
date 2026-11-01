@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../data/models/account.dart';
+import '../../../data/providers.dart';
+import '../../settings/settings_providers.dart';
 
 /// `사후 열람`: who the account opens to, and where that comes from.
 class AccountAudienceSection extends StatelessWidget {
@@ -54,7 +57,7 @@ class AccountAudienceSection extends StatelessWidget {
 }
 
 /// `계정 정보`: login id, password behind a reveal, and where the data sits.
-class AccountInfoSection extends StatefulWidget {
+class AccountInfoSection extends ConsumerStatefulWidget {
   const AccountInfoSection({super.key, required this.account, this.error});
 
   final Account account;
@@ -63,11 +66,33 @@ class AccountInfoSection extends StatefulWidget {
   final String? error;
 
   @override
-  State<AccountInfoSection> createState() => _AccountInfoSectionState();
+  ConsumerState<AccountInfoSection> createState() => _AccountInfoSectionState();
 }
 
-class _AccountInfoSectionState extends State<AccountInfoSection> {
+class _AccountInfoSectionState extends ConsumerState<AccountInfoSection> {
   var _revealed = false;
+
+  Future<void> _toggleSecret() async {
+    if (_revealed) {
+      setState(() => _revealed = false);
+      return;
+    }
+    final settings = ref.read(localSettingsProvider).value;
+    if (settings?.certifyBeforeSensitive == true) {
+      final ok = await ref
+          .read(biometricAuthProvider)
+          .authenticate('계정 비밀번호를 보려면 인증이 필요해요.');
+      if (!ok) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('인증하지 못했어요.')));
+        }
+        return;
+      }
+    }
+    if (mounted) setState(() => _revealed = true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +132,7 @@ class _AccountInfoSectionState extends State<AccountInfoSection> {
               style: AppText.rowValue,
             ),
             trailing: TextButton(
-              onPressed: () => setState(() => _revealed = !_revealed),
+              onPressed: _toggleSecret,
               style: TextButton.styleFrom(
                 minimumSize: const Size(34, 22),
                 padding: EdgeInsets.zero,
