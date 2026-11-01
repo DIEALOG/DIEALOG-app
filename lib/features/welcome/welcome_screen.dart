@@ -42,6 +42,10 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 child: Text('이미 계정이 있어요', style: AppText.textButton),
               ),
+              TextButton(
+                onPressed: () => context.push(Routes.invitation),
+                child: Text('확인자 초대 코드가 있어요', style: AppText.link),
+              ),
             ],
           ),
         ),

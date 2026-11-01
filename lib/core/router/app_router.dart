@@ -17,6 +17,7 @@ import '../../features/legacy/account_edit_screen.dart';
 import '../../features/legacy/register/account_register_screen.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/welcome/welcome_screen.dart';
+import '../../features/transition/invitation_screen.dart';
 import 'routes.dart';
 
 export 'routes.dart';
@@ -31,15 +32,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final location = state.matchedLocation;
       return switch (status.value) {
-        AuthStatus.unknown =>
-          location == Routes.splash ? null : Routes.splash,
+        AuthStatus.unknown => location == Routes.splash ? null : Routes.splash,
         AuthStatus.signedOut =>
           AuthPaths.isPublic(location) ? null : Routes.welcome,
-        AuthStatus.signedIn => location.startsWith('/signup')
-            ? null
-            : (location == Routes.splash || AuthPaths.isPublic(location)
-                ? Routes.home
-                : null),
+        AuthStatus.signedIn =>
+          (location.startsWith('/signup') || location == Routes.invitation)
+              ? null
+              : (location == Routes.splash || AuthPaths.isPublic(location)
+                    ? Routes.home
+                    : null),
       };
     },
     routes: [
@@ -54,6 +55,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.login,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: Routes.invitation,
+        builder: (context, state) =>
+            InvitationScreen(initialToken: state.uri.queryParameters['token']),
       ),
       GoRoute(
         path: Routes.signupName,

@@ -10,6 +10,7 @@ abstract final class Routes {
   static const signupTerms = '/signup/terms';
   static const signupComplete = '/signup/complete';
   static const home = '/home';
+  static const invitation = '/invitation';
 
   static const accountNew = '/account/new';
   static const accountDetail = '/account/:legacyId/:accountId';
@@ -26,5 +27,6 @@ abstract final class AuthPaths {
   static bool isPublic(String location) =>
       location == Routes.welcome ||
       location == Routes.login ||
+      location == Routes.invitation ||
       (location.startsWith('/signup') && location != Routes.signupComplete);
 }

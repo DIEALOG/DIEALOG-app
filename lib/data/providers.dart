@@ -5,10 +5,12 @@ import '../core/config/env.dart';
 import '../core/network/auth_interceptor.dart';
 import '../core/storage/local_prefs.dart';
 import '../core/storage/token_storage.dart';
+import '../core/storage/confirmer_session_store.dart';
 import '../features/auth/auth_controller.dart';
 import 'mock/mock_api_interceptor.dart';
 import 'mock/mock_backend.dart';
 import 'repositories/auth_repository.dart';
+import 'repositories/confirmer_repository.dart';
 import 'repositories/last_word_repository.dart';
 import 'repositories/legacy_repository.dart';
 import 'repositories/mock/afterlife_repository.dart';
@@ -20,6 +22,10 @@ import 'repositories/transition_repository.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => SecureTokenStorage(),
+);
+
+final confirmerSessionStoreProvider = Provider<ConfirmerSessionStore>(
+  (ref) => SecureConfirmerSessionStore(),
 );
 
 final localSettingsStoreProvider = Provider<LocalSettingsStore>(
@@ -80,6 +86,10 @@ final stakeholderRepositoryProvider = Provider(
 
 final transitionRepositoryProvider = Provider(
   (ref) => TransitionRepository(ref.watch(dioProvider)),
+);
+
+final confirmerRepositoryProvider = Provider(
+  (ref) => ConfirmerRepository(ref.watch(dioProvider)),
 );
 
 final lastWordRepositoryProvider = Provider(

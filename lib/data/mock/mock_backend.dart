@@ -32,6 +32,8 @@ class MockBackend {
   final _lastWords = <Json>[];
   final _confirmers = <Json>[];
   final _aliveChecks = <Json>[];
+  final _invitationTokens = <String, String>{};
+  final _confirmerTokens = <String, String>{};
 
   late Json _user;
   late Json _config;
@@ -67,6 +69,34 @@ class MockBackend {
     if (verb == 'POST' && match(['signup'])) return _signup(data);
     if (verb == 'POST' && match(['login'])) return _login(data);
     if (verb == 'POST' && match(['refresh'])) return MockResult(200, _tokens());
+
+    if (verb == 'POST' && match(['transition', 'invitations', 'accept'])) {
+      final token = data['token'] as String? ?? '';
+      final confirmerId = _invitationTokens.remove(token);
+      if (confirmerId == null) {
+        throw const MockApiError(400, '초대 코드가 유효하지 않아요.');
+      }
+      final confirmer = _requireConfirmer(confirmerId);
+      confirmer['status'] = 'accepted';
+      confirmer['accepted_at'] = _now();
+      final authToken = _id('confirmer-auth');
+      _confirmerTokens[authToken] = confirmerId;
+      return MockResult(200, {
+        'confirmer': confirmer,
+        'auth_token': authToken,
+        'expires_at': _daysFromNow(30),
+      });
+    }
+    if (verb == 'POST' && match(['transition', 'invitations', 'decline'])) {
+      final token = data['token'] as String? ?? '';
+      final confirmerId = _invitationTokens.remove(token);
+      if (confirmerId == null) {
+        throw const MockApiError(400, '초대 코드가 유효하지 않아요.');
+      }
+      final confirmer = _requireConfirmer(confirmerId);
+      confirmer['status'] = 'declined';
+      return const MockResult(200, {'message': 'invitation declined'});
+    }
 
     // profile
     if (verb == 'GET' && match(['profile', 'protected'])) {
@@ -138,10 +168,9 @@ class MockBackend {
     }
     if (match(['stakeholder', 'protected'])) {
       if (verb == 'GET') {
-        return MockResult(
-          200,
-          [for (final s in _stakeholders) _stakeholderJson(s)],
-        );
+        return MockResult(200, [
+          for (final s in _stakeholders) _stakeholderJson(s),
+        ]);
       }
       if (verb == 'POST') return _createStakeholder(data);
     }
@@ -225,6 +254,8 @@ class MockBackend {
       final confirmer = _requireConfirmer(at(3));
       confirmer['status'] = 'revoked';
       confirmer['revoked_at'] = _now();
+      _invitationTokens.removeWhere((_, id) => id == at(3));
+      _confirmerTokens.removeWhere((_, id) => id == at(3));
       return MockResult(200, confirmer);
     }
     if (verb == 'POST' &&
@@ -233,9 +264,13 @@ class MockBackend {
       confirmer['status'] = 'pending';
       confirmer['invited_at'] = _now();
       confirmer['invite_expires_at'] = _daysFromNow(7);
+      _invitationTokens.removeWhere((_, id) => id == at(3));
+      _confirmerTokens.removeWhere((_, id) => id == at(3));
+      final token = _id('invite');
+      _invitationTokens[token] = at(3);
       return MockResult(200, {
         'confirmer': confirmer,
-        'invitation_token': _id('invite'),
+        'invitation_token': token,
         'expires_at': _daysFromNow(7),
       });
     }
@@ -281,9 +316,9 @@ class MockBackend {
   }
 
   Json _tokens() => {
-        'accessToken': 'mock-access-${++_seq}',
-        'refreshToken': 'mock-refresh-$_seq',
-      };
+    'accessToken': 'mock-access-${++_seq}',
+    'refreshToken': 'mock-refresh-$_seq',
+  };
 
   MockResult _createLegacy(Json data) {
     final legacy = <String, dynamic>{
@@ -297,8 +332,9 @@ class MockBackend {
   }
 
   MockResult _createAccount(Json legacy, Json data) {
-    final type =
-        data['type'] is Json ? data['type'] as Json : const <String, dynamic>{};
+    final type = data['type'] is Json
+        ? data['type'] as Json
+        : const <String, dynamic>{};
     final action = data['action'] is Json
         ? data['action'] as Json
         : const <String, dynamic>{};
@@ -316,7 +352,8 @@ class MockBackend {
       'account_password': data['account_password'],
       'data_location': data['data_location'],
       'stakeholder_ids': _ids(data['stakeholder_ids']) ?? <String>[],
-      'stakeholder_group_ids': _ids(data['stakeholder_group_ids']) ?? <String>[],
+      'stakeholder_group_ids':
+          _ids(data['stakeholder_group_ids']) ?? <String>[],
       'created_at': _now(),
     };
     _accounts.add(account);
@@ -379,9 +416,11 @@ class MockBackend {
       'updated_at': _now(),
     };
     _confirmers.add(confirmer);
+    final token = _id('invite');
+    _invitationTokens[token] = confirmer['id'] as String;
     return MockResult(201, {
       'confirmer': confirmer,
-      'invitation_token': _id('invite'),
+      'invitation_token': token,
       'expires_at': _daysFromNow(7),
     });
   }
@@ -404,48 +443,49 @@ class MockBackend {
   // ----------------------------------------------------------------- views
 
   Json _profileJson() => {
-        ..._user,
-        'stakeholders': [for (final s in _stakeholders) _stakeholderJson(s)],
-        'stakeholder_groups': [for (final g in _groups) _groupJson(g)],
-      };
+    ..._user,
+    'stakeholders': [for (final s in _stakeholders) _stakeholderJson(s)],
+    'stakeholder_groups': [for (final g in _groups) _groupJson(g)],
+  };
 
   Json _legacyJson(Json legacy) => {
-        'id': legacy['id'],
-        'name': legacy['name'],
-        'user_id': legacy['user_id'],
-        'accounts': [
-          for (final a in _accounts)
-            if (a['legacy_id'] == legacy['id']) _accountListJson(a),
-        ],
-        'created_at': legacy['created_at'],
-      };
+    'id': legacy['id'],
+    'name': legacy['name'],
+    'user_id': legacy['user_id'],
+    'accounts': [
+      for (final a in _accounts)
+        if (a['legacy_id'] == legacy['id']) _accountListJson(a),
+    ],
+    'created_at': legacy['created_at'],
+  };
 
   Json _accountListJson(Json account) => {
-        'id': account['id'],
-        'legacy_id': account['legacy_id'],
-        'type': account['type'],
-        'name': account['name'],
-        'action': account['action'],
-        'stakeholder_ids': List<String>.from(account['stakeholder_ids'] as List),
-        'stakeholder_group_ids':
-            List<String>.from(account['stakeholder_group_ids'] as List),
-        'created_at': account['created_at'],
-      };
+    'id': account['id'],
+    'legacy_id': account['legacy_id'],
+    'type': account['type'],
+    'name': account['name'],
+    'action': account['action'],
+    'stakeholder_ids': List<String>.from(account['stakeholder_ids'] as List),
+    'stakeholder_group_ids': List<String>.from(
+      account['stakeholder_group_ids'] as List,
+    ),
+    'created_at': account['created_at'],
+  };
 
   Json _accountDetailJson(Json account) => {
-        ..._accountListJson(account),
-        'account_id': account['account_id'],
-        'account_password': account['account_password'],
-        'data_location': account['data_location'],
-        'stakeholders': [
-          for (final id in account['stakeholder_ids'] as List)
-            ?_maybe(_stakeholders, id, _stakeholderJson),
-        ],
-        'stakeholder_groups': [
-          for (final id in account['stakeholder_group_ids'] as List)
-            ?_maybe(_groups, id, _groupJson),
-        ],
-      };
+    ..._accountListJson(account),
+    'account_id': account['account_id'],
+    'account_password': account['account_password'],
+    'data_location': account['data_location'],
+    'stakeholders': [
+      for (final id in account['stakeholder_ids'] as List)
+        ?_maybe(_stakeholders, id, _stakeholderJson),
+    ],
+    'stakeholder_groups': [
+      for (final id in account['stakeholder_group_ids'] as List)
+        ?_maybe(_groups, id, _groupJson),
+    ],
+  };
 
   Json _stakeholderJson(Json stakeholder) {
     final id = stakeholder['id'];
@@ -462,47 +502,47 @@ class MockBackend {
 
   /// Group without its members, used where a stakeholder is already nested.
   Json _plainGroupJson(Json group) => {
-        'id': group['id'],
-        'user_id': group['user_id'],
-        'name': group['name'],
-        'stakeholder_ids': List<String>.from(group['stakeholder_ids'] as List),
-        'created_at': group['created_at'],
-      };
+    'id': group['id'],
+    'user_id': group['user_id'],
+    'name': group['name'],
+    'stakeholder_ids': List<String>.from(group['stakeholder_ids'] as List),
+    'created_at': group['created_at'],
+  };
 
   Json _groupJson(Json group) => {
-        ..._plainGroupJson(group),
-        'stakeholders': [
-          for (final id in group['stakeholder_ids'] as List)
-            ?_maybe(_stakeholders, id, _plainStakeholderJson),
-        ],
-      };
+    ..._plainGroupJson(group),
+    'stakeholders': [
+      for (final id in group['stakeholder_ids'] as List)
+        ?_maybe(_stakeholders, id, _plainStakeholderJson),
+    ],
+  };
 
   /// Stakeholder without its groups, used inside a group response.
   Json _plainStakeholderJson(Json stakeholder) => {
-        'id': stakeholder['id'],
-        'user_id': stakeholder['user_id'],
-        'name': stakeholder['name'],
-        'email': stakeholder['email'],
-        'phone': stakeholder['phone'],
-        'relationship': stakeholder['relationship'],
-        'message': stakeholder['message'],
-        'created_at': stakeholder['created_at'],
-      };
+    'id': stakeholder['id'],
+    'user_id': stakeholder['user_id'],
+    'name': stakeholder['name'],
+    'email': stakeholder['email'],
+    'phone': stakeholder['phone'],
+    'relationship': stakeholder['relationship'],
+    'message': stakeholder['message'],
+    'created_at': stakeholder['created_at'],
+  };
 
   Json _lastWordJson(Json word) => {
-        'id': word['id'],
-        'user_id': word['user_id'],
-        'title': word['title'],
-        'message': word['message'],
-        'receiver': [
-          for (final id in word['receiver_ids'] as List)
-            ?_maybe(_stakeholders, id, _stakeholderJson),
-        ],
-        'receiver_groups': [
-          for (final id in word['receiver_group_ids'] as List)
-            ?_maybe(_groups, id, _groupJson),
-        ],
-      };
+    'id': word['id'],
+    'user_id': word['user_id'],
+    'title': word['title'],
+    'message': word['message'],
+    'receiver': [
+      for (final id in word['receiver_ids'] as List)
+        ?_maybe(_stakeholders, id, _stakeholderJson),
+    ],
+    'receiver_groups': [
+      for (final id in word['receiver_group_ids'] as List)
+        ?_maybe(_groups, id, _groupJson),
+    ],
+  };
 
   // ----------------------------------------------------------------- utils
 
@@ -535,10 +575,12 @@ class MockBackend {
   }
 
   Json _requireLegacy(String id) =>
-      _find(_legacies, id) ?? (throw const MockApiError(404, 'legacy not found'));
+      _find(_legacies, id) ??
+      (throw const MockApiError(404, 'legacy not found'));
 
   Json _requireAccount(String id) =>
-      _find(_accounts, id) ?? (throw const MockApiError(404, 'account not found'));
+      _find(_accounts, id) ??
+      (throw const MockApiError(404, 'account not found'));
 
   Json _requireStakeholder(String id) =>
       _find(_stakeholders, id) ??

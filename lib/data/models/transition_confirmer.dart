@@ -22,6 +22,7 @@ class TransitionConfirmer {
     this.stakeholderId,
     this.email,
     this.phone,
+    this.ownerUserId,
   });
 
   factory TransitionConfirmer.fromJson(Json json) => TransitionConfirmer(
@@ -31,6 +32,7 @@ class TransitionConfirmer {
     stakeholderId: json['stakeholder_id'] as String?,
     email: json['email'] as String?,
     phone: json['phone'] as String?,
+    ownerUserId: json['user_id'] as String?,
   );
 
   final String id;
@@ -39,6 +41,7 @@ class TransitionConfirmer {
   final String? stakeholderId;
   final String? email;
   final String? phone;
+  final String? ownerUserId;
 
   bool get isActive =>
       status == ConfirmerStatus.pending || status == ConfirmerStatus.accepted;

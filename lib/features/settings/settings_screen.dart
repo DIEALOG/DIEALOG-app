@@ -11,6 +11,7 @@ import 'confirmers_screen.dart';
 import 'policy_sheets.dart';
 import 'profile_screen.dart';
 import 'settings_providers.dart';
+import '../transition/invitation_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -60,7 +61,8 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final local = ref.watch(localSettingsProvider).value ?? const LocalSettings();
+    final local =
+        ref.watch(localSettingsProvider).value ?? const LocalSettings();
     final controller = ref.read(localSettingsProvider.notifier);
     final policy = data.policy;
 
@@ -94,8 +96,7 @@ class _Body extends ConsumerWidget {
           _SwitchRow(
             label: 'Face ID로 앱 잠금',
             value: local.lockByFaceId,
-            onChanged: (v) =>
-                saveSecurity(local.copyWith(lockByFaceId: v)),
+            onChanged: (v) => saveSecurity(local.copyWith(lockByFaceId: v)),
           ),
           _SwitchRow(
             label: '민감 정보 볼 때 다시 인증',
@@ -152,6 +153,12 @@ class _Body extends ConsumerWidget {
             label: '맡은 기록과 받은 말',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const AfterlifeScreen()),
+            ),
+          ),
+          _ValueRow(
+            label: '확인자 초대 코드 입력',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const InvitationScreen()),
             ),
           ),
           const _SectionLabel('계정'),
@@ -250,7 +257,10 @@ class _SwitchRow extends StatelessWidget {
     child: Row(
       children: [
         Expanded(
-          child: Text(label, style: AppText.body.copyWith(color: AppColors.ink)),
+          child: Text(
+            label,
+            style: AppText.body.copyWith(color: AppColors.ink),
+          ),
         ),
         Switch(
           value: value,
