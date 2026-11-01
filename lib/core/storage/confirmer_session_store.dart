@@ -8,6 +8,7 @@ abstract interface class ConfirmerSessionStore {
   Future<List<ConfirmerSession>> read();
   Future<void> upsert(ConfirmerSession session);
   Future<void> remove(String confirmerId);
+  Future<void> clear();
 }
 
 class SecureConfirmerSessionStore implements ConfirmerSessionStore {
@@ -54,6 +55,9 @@ class SecureConfirmerSessionStore implements ConfirmerSessionStore {
       value: jsonEncode([for (final item in sessions) item.toJson()]),
     );
   }
+
+  @override
+  Future<void> clear() => _storage.delete(key: _key);
 }
 
 class InMemoryConfirmerSessionStore implements ConfirmerSessionStore {
@@ -72,4 +76,7 @@ class InMemoryConfirmerSessionStore implements ConfirmerSessionStore {
   @override
   Future<void> remove(String confirmerId) async =>
       _sessions.removeWhere((item) => item.confirmerId == confirmerId);
+
+  @override
+  Future<void> clear() async => _sessions.clear();
 }

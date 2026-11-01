@@ -47,6 +47,8 @@ class MockBackend {
   late Json _config;
   late Json _policy;
 
+  static const _demoEmail = 'seoyeon.kim@gmail.com';
+
   var _seq = 0;
 
   String _id(String prefix) => '$prefix-${++_seq}';
@@ -359,6 +361,10 @@ class MockBackend {
         match(['transition', 'protected', 'confirmers', 'designating-users'])) {
       return _listDesignatingUsers();
     }
+    if (verb == 'POST' &&
+        match(['transition', 'protected', 'confirmers', 'access'])) {
+      return _claimAccess();
+    }
     if (verb == 'DELETE' &&
         match(['transition', 'protected', 'confirmers', '*'])) {
       final confirmer = _requireConfirmer(at(3));
@@ -562,12 +568,11 @@ class MockBackend {
   // ------------------------------------------------------------- endpoints
 
   MockResult _signup(Json data) {
-    _user = {
-      ..._user,
-      'name': data['name'] ?? _user['name'],
-      'email': data['email'] ?? _user['email'],
-      'phone_number': data['phone_number'] ?? _user['phone_number'],
-    };
+    _becomeUser(
+      name: data['name'] as String? ?? '',
+      email: data['email'] as String? ?? '',
+      phone: data['phone_number'] as String?,
+    );
     return MockResult(200, _tokens());
   }
 
@@ -577,7 +582,11 @@ class MockBackend {
     if (email.isEmpty || password.isEmpty) {
       throw const MockApiError(401, '이메일 또는 비밀번호를 확인해 주세요.');
     }
-    _user['email'] = email;
+    if (email == _demoEmail) {
+      if (_user['email'] != _demoEmail) _seed();
+    } else {
+      _becomeUser(name: email.split('@').first, email: email);
+    }
     return MockResult(200, _tokens());
   }
 
@@ -908,6 +917,40 @@ class MockBackend {
     return item;
   }
 
+  MockResult _claimAccess() {
+    final email = _user['email'] as String?;
+    final phone = _user['phone_number'] as String?;
+    final items = <Json>[];
+    for (final confirmer in _confirmers) {
+      final status = confirmer['status'] as String?;
+      if (status != 'pending' && status != 'accepted') continue;
+      if (confirmer['user_id'] == _user['id']) continue;
+      final matchesEmail =
+          email != null &&
+          email.isNotEmpty &&
+          confirmer['email'] == email;
+      final matchesPhone =
+          phone != null &&
+          phone.isNotEmpty &&
+          confirmer['phone'] == phone;
+      if (!matchesEmail && !matchesPhone) continue;
+      if (status == 'pending') {
+        confirmer['status'] = 'accepted';
+        confirmer['accepted_at'] = _now();
+        _invitationTokens.removeWhere((_, id) => id == confirmer['id']);
+      }
+      _confirmerTokens.removeWhere((_, id) => id == confirmer['id']);
+      final authToken = _id('confirmer-auth');
+      _confirmerTokens[authToken] = confirmer['id'] as String;
+      items.add({
+        'confirmer': confirmer,
+        'auth_token': authToken,
+        'expires_at': _daysFromNow(30),
+      });
+    }
+    return MockResult(200, items);
+  }
+
   MockResult _listDesignatingUsers() {
     final email = _user['email'] as String?;
     final phone = _user['phone_number'] as String?;
@@ -1015,9 +1058,60 @@ class MockBackend {
     );
   }
 
+  void _wipe() {
+    _stakeholders.clear();
+    _groups.clear();
+    _legacies.clear();
+    _accounts.clear();
+    _lastWords.clear();
+    _confirmers.clear();
+    _aliveChecks.clear();
+    _invitationTokens.clear();
+    _confirmerTokens.clear();
+    _cases.clear();
+    _confirmations.clear();
+    _tasks.clear();
+    _taskTokens.clear();
+    _reportedTaskTokens.clear();
+    _notifications.clear();
+    _owners.clear();
+    _otp.clear();
+  }
+
+  void _becomeUser({
+    required String name,
+    required String email,
+    String? phone,
+  }) {
+    _wipe();
+    _user = {
+      'id': _id('user'),
+      'name': name,
+      'email': email,
+      'phone_number': phone,
+      'profile_image_path': null,
+    };
+    _config = {
+      'id': _id('config'),
+      'user_id': _user['id'],
+      'lock_by_face_id': false,
+      'certification_before_sensitive_information': false,
+    };
+    _policy = {
+      'id': _id('policy'),
+      'user_id': _user['id'],
+      'minimum_confirmers': 2,
+      'waiting_period_days': 14,
+      'alive_check_interval_days': 90,
+      'created_at': _now(),
+      'updated_at': _now(),
+    };
+  }
+
   // ------------------------------------------------------------------ seed
 
   void _seed() {
+    _wipe();
     _user = {
       'id': _id('user'),
       'name': '김서연',

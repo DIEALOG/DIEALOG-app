@@ -1,5 +1,6 @@
 import 'package:diealog_app/data/mock/mock_api_interceptor.dart';
 import 'package:diealog_app/data/mock/mock_backend.dart';
+import 'package:diealog_app/data/models/transition_confirmer.dart';
 import 'package:diealog_app/data/repositories/transition_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +22,11 @@ void main() {
           .any((item) => item.name == '최동훈'),
       isFalse,
     );
+
+    final access = await TransitionRepository(dio).claimAccess();
+    expect(access, isNotEmpty);
+    expect(access.first.confirmer.status, ConfirmerStatus.accepted);
+    expect(access.first.authToken, isNotEmpty);
     dio.close();
   });
 }

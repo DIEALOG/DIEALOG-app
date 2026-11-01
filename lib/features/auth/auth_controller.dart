@@ -47,6 +47,7 @@ class AuthController extends Notifier<AuthStatus> {
 
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
+    await ref.read(confirmerSessionStoreProvider).clear();
     if (ref.mounted) state = AuthStatus.signedOut;
   }
 

@@ -11,10 +11,7 @@ import 'confirmers_screen.dart';
 import 'policy_sheets.dart';
 import 'profile_screen.dart';
 import 'settings_providers.dart';
-import '../transition/invitation_screen.dart';
-import '../transition/confirmer_cases_screen.dart';
 import '../transition/owner_transition_screen.dart';
-import '../transition/stakeholder_task_result_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -39,7 +36,9 @@ class SettingsScreen extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    error is ApiException ? error.message : '설정을 불러오지 못했어요.',
+                    error is ApiException
+                        ? error.userMessage
+                        : '설정을 불러오지 못했어요.',
                     style: AppText.body,
                   ),
                   TextButton(
@@ -164,28 +163,6 @@ class _Body extends ConsumerWidget {
             label: '맡은 기록과 받은 말',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const AfterlifeScreen()),
-            ),
-          ),
-          _ValueRow(
-            label: '확인자 초대 코드 입력',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const InvitationScreen()),
-            ),
-          ),
-          _ValueRow(
-            label: '내게 온 사후 전환 요청',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ConfirmerCasesScreen(),
-              ),
-            ),
-          ),
-          _ValueRow(
-            label: '계정 처리 결과 제출',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const StakeholderTaskResultScreen(),
-              ),
             ),
           ),
           const _SectionLabel('계정'),

@@ -9,7 +9,7 @@ import '../../data/models/confirmer_access.dart';
 import '../../data/models/designating_user.dart';
 import '../../data/models/transition_case.dart';
 import '../../data/providers.dart';
-import 'invitation_screen.dart';
+import '../auth/auth_controller.dart';
 
 class ConfirmerInbox {
   const ConfirmerInbox(this.session, this.cases, this.error);
@@ -20,12 +20,27 @@ class ConfirmerInbox {
 
 final designatingUsersProvider =
     FutureProvider.autoDispose<List<DesignatingUser>>(
-      (ref) => ref.watch(transitionRepositoryProvider).listDesignatingUsers(),
+      (ref) => ref.watch(authControllerProvider) == AuthStatus.signedIn
+          ? ref.watch(transitionRepositoryProvider).listDesignatingUsers()
+          : Future.value(const <DesignatingUser>[]),
     );
 
 final confirmerInboxProvider = FutureProvider.autoDispose<List<ConfirmerInbox>>(
   (ref) async {
-    final sessions = await ref.watch(confirmerSessionStoreProvider).read();
+    final store = ref.watch(confirmerSessionStoreProvider);
+    if (ref.watch(authControllerProvider) == AuthStatus.signedIn) {
+      try {
+        final claimed = await ref
+            .watch(transitionRepositoryProvider)
+            .claimAccess();
+        for (final access in claimed) {
+          await store.upsert(ConfirmerSession.fromAccess(access));
+        }
+      } on ApiException {
+        // Older servers have no claim endpoint; local sessions still apply.
+      }
+    }
+    final sessions = await store.read();
     final repository = ref.watch(confirmerRepositoryProvider);
     return Future.wait([
       for (final session in sessions)
@@ -37,7 +52,7 @@ final confirmerInboxProvider = FutureProvider.autoDispose<List<ConfirmerInbox>>(
               null,
             );
           } on ApiException catch (error) {
-            return ConfirmerInbox(session, const [], error.message);
+            return ConfirmerInbox(session, const [], error.userMessage);
           }
         }(),
     ]);
@@ -50,33 +65,27 @@ class ConfirmerCasesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final inbox = ref.watch(confirmerInboxProvider);
+    final signedIn = ref.watch(authControllerProvider) == AuthStatus.signedIn;
     final owners = ref.watch(designatingUsersProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('내게 온 요청'), centerTitle: true),
-      body: inbox.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, _) => Center(
-          child: TextButton(
-            onPressed: () => ref.invalidate(confirmerInboxProvider),
-            child: const Text('요청을 불러오지 못했어요. 다시 시도'),
-          ),
-        ),
-        data: (entries) => RefreshIndicator(
-          onRefresh: () async {
-            await Future.wait([
-              ref.refresh(designatingUsersProvider.future),
-              ref.refresh(confirmerInboxProvider.future),
-            ]);
-          },
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            children: [
-              Text('내게 온 요청', style: AppText.screenTitle),
-              const SizedBox(height: 10),
-              Text(
-                '나를 확인자로 지정한 사람과, 수락한 자격으로 온 사후 전환 요청을 확인해요.',
-                style: AppText.body,
-              ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await Future.wait<Object>([
+            if (signedIn) ref.refresh(designatingUsersProvider.future),
+            ref.refresh(confirmerInboxProvider.future),
+          ]);
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+          children: [
+            Text('내게 온 요청', style: AppText.screenTitle),
+            const SizedBox(height: 10),
+            Text(
+              '나를 확인자로 지정한 사람과, 사실 확인이 필요한 요청을 여기서 봐요.',
+              style: AppText.body,
+            ),
+            if (signedIn) ...[
               const SizedBox(height: 24),
               Text('받은 초대', style: AppText.section),
               owners.when(
@@ -88,7 +97,7 @@ class ConfirmerCasesScreen extends ConsumerWidget {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     error is ApiException
-                        ? error.message
+                        ? error.userMessage
                         : '지정한 사람을 불러오지 못했어요.',
                     style: AppText.body,
                   ),
@@ -106,100 +115,109 @@ class ConfirmerCasesScreen extends ConsumerWidget {
                           for (final person in people)
                             ListTile(
                               contentPadding: EdgeInsets.zero,
-                              title: Text(person.name, style: AppText.listTitle),
+                              title: Text(
+                                person.name,
+                                style: AppText.listTitle,
+                              ),
                               subtitle: Text(
-                                '확인자로 지정됨',
+                                '로그인 계정으로 확인자 자격이 연결됩니다.',
                                 style: AppText.listCaption,
-                              ),
-                              trailing: const Icon(
-                                Icons.chevron_right,
-                                color: AppColors.muted,
-                              ),
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const InvitationScreen(),
-                                ),
                               ),
                             ),
                         ],
                       ),
               ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const InvitationScreen(),
-                  ),
-                ),
-                child: const Text('초대 코드 입력'),
-              ),
-              const SizedBox(height: 16),
-              Text('확인할 요청', style: AppText.section),
-              if (entries.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    '수락한 확인자 초대가 없어요. 초대 코드를 입력해 주세요.',
-                    style: AppText.body,
-                  ),
-                ),
-              for (final entry in entries) ...[
-                const SizedBox(height: 28),
-                Text('확인자 · ${entry.session.name}', style: AppText.section),
-                if (entry.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      entry.error!,
-                      style: const TextStyle(color: AppColors.unread),
-                    ),
-                  ),
-                if (entry.error == null && entry.cases.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text('진행 중인 요청이 없어요.', style: AppText.body),
-                  ),
-                for (final item in entry.cases)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('사후 전환 확인', style: AppText.listTitle),
-                    subtitle: Text(
-                      '${item.status.label} · ${_date(item.requestedAt)}',
-                      style: AppText.listCaption,
-                    ),
-                    trailing: const Icon(
-                      Icons.chevron_right,
-                      color: AppColors.muted,
-                    ),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => ConfirmerCaseDetailScreen(
-                            session: entry.session,
-                            caseId: item.id,
-                          ),
-                        ),
-                      );
-                      ref.invalidate(confirmerInboxProvider);
-                    },
-                  ),
-                if (entry.error == null && entry.cases.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: OutlinedButton(
-                      onPressed: () => _startCase(context, ref, entry.session),
-                      child: const Text('사후 전환 확인 요청하기'),
-                    ),
-                  ),
-              ],
-              const SizedBox(height: 30),
-              Text(
-                '확인자 자격은 초대를 수락한 사람에게만 부여됩니다. '
-                '요청만으로 사후 공개가 확정되지는 않아요.',
-                style: AppText.helper,
-              ),
             ],
-          ),
+            const SizedBox(height: 20),
+            Text('확인할 요청', style: AppText.section),
+            inbox.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, _) => Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: TextButton(
+                  onPressed: () => ref.invalidate(confirmerInboxProvider),
+                  child: const Text('요청을 불러오지 못했어요. 다시 시도'),
+                ),
+              ),
+              data: (entries) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (entries.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        signedIn
+                            ? '진행 중인 확인 요청이 없어요.'
+                            : '로그인하면 내게 온 확인 요청을 볼 수 있어요.',
+                        style: AppText.body,
+                      ),
+                    ),
+                  for (final entry in entries) ...[
+                    const SizedBox(height: 20),
+                    Text(
+                      '확인자 · ${entry.session.name}',
+                      style: AppText.section,
+                    ),
+                    if (entry.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text(
+                          entry.error!,
+                          style: const TextStyle(color: AppColors.unread),
+                        ),
+                      ),
+                    if (entry.error == null && entry.cases.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text('진행 중인 요청이 없어요.', style: AppText.body),
+                      ),
+                    for (final item in entry.cases)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('사후 전환 확인', style: AppText.listTitle),
+                        subtitle: Text(
+                          '${item.status.label} · ${_date(item.requestedAt)}',
+                          style: AppText.listCaption,
+                        ),
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: AppColors.muted,
+                        ),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ConfirmerCaseDetailScreen(
+                                session: entry.session,
+                                caseId: item.id,
+                              ),
+                            ),
+                          );
+                          ref.invalidate(confirmerInboxProvider);
+                        },
+                      ),
+                    if (entry.error == null && entry.cases.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: OutlinedButton(
+                          onPressed: () =>
+                              _startCase(context, ref, entry.session),
+                          child: const Text('사후 전환 확인 요청하기'),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            Text(
+              '확인자 자격은 초대를 받은 계정에 연결됩니다. '
+              '요청만으로 사후 공개가 확정되지는 않아요.',
+              style: AppText.helper,
+            ),
+          ],
         ),
       ),
     );
@@ -247,7 +265,10 @@ class ConfirmerCasesScreen extends ConsumerWidget {
     } on ApiException catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.message)));
+            .showSnackBar(SnackBar(content: Text(error.userMessage)));
+        if (error.message.toLowerCase().contains('already exists')) {
+          ref.invalidate(confirmerInboxProvider);
+        }
       }
     }
   }
@@ -314,7 +335,7 @@ class _ConfirmerCaseDetailScreenState
         });
       }
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _error = error.userMessage);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

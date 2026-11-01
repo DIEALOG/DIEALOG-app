@@ -35,6 +35,22 @@ class ApiException implements Exception {
   bool get isUnauthorized => statusCode == 401;
   bool get isNotFound => statusCode == 404;
 
+  /// Server English leftovers that settings/inbox used to dump as-is.
+  String get userMessage {
+    final lower = message.toLowerCase();
+    if (lower.contains('transition policy not found')) {
+      return '전환 정책이 아직 없어요. 잠시 후 다시 시도해 주세요.';
+    }
+    if (lower.contains('invitation not found') ||
+        lower.contains('invitation is no longer active')) {
+      return '초대가 만료됐거나 이미 처리됐어요.';
+    }
+    if (lower.contains('active transition case already exists')) {
+      return '이미 진행 중인 전환 요청이 있어요.';
+    }
+    return message;
+  }
+
   @override
   String toString() => 'ApiException($statusCode): $message';
 }

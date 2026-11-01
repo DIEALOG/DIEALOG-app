@@ -84,7 +84,7 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
       }
       _code.clear();
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _error = error.userMessage);
     } catch (_) {
       if (mounted) setState(() => _error = '초대를 처리하지 못했어요. 다시 시도해 주세요.');
     } finally {

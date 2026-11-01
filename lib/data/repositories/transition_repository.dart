@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../core/network/api_exception.dart';
+import '../models/confirmer_access.dart';
 import '../models/json.dart';
 import '../models/stakeholder.dart';
 import '../models/transition_confirmer.dart';
@@ -49,8 +50,13 @@ class TransitionRepository {
   }
 
   Future<TransitionPolicy> fetchPolicy() async {
-    final response = await guardApi(() => _dio.get<Json>(_policy));
-    return TransitionPolicy.fromJson(response.data!);
+    try {
+      final response = await guardApi(() => _dio.get<Json>(_policy));
+      return TransitionPolicy.fromJson(response.data!);
+    } on ApiException catch (e) {
+      if (e.isNotFound) return const TransitionPolicy();
+      rethrow;
+    }
   }
 
   /// Only the fields given are sent; the rest keep their stored value.
@@ -127,6 +133,17 @@ class TransitionRepository {
       ),
     );
     return parseList(response.data, DesignatingUser.fromJson);
+  }
+
+  /// Issues confirmer auth tokens for invites that match this login.
+  /// Missing on older servers (404); callers treat that as "nothing to claim".
+  Future<List<ConfirmerAccess>> claimAccess() async {
+    final response = await guardApi(
+      () => _dio.post<List<dynamic>>(
+        '/transition/protected/confirmers/access',
+      ),
+    );
+    return parseList(response.data, ConfirmerAccess.fromJson);
   }
 
   Future<AccountHandlingRequestResponse> requestTask(String taskId) async {

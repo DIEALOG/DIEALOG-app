@@ -29,6 +29,12 @@ android {
         versionName = flutter.versionName
     }
 
+    // Use the same debug key as an already installed development build when
+    // upgrading it without deleting its local app data.
+    System.getenv("DIEALOG_DEBUG_KEYSTORE")?.let { path ->
+        signingConfigs.getByName("debug").storeFile = file(path)
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

@@ -73,6 +73,34 @@ void main() {
         isFalse);
   });
 
+  test('a missing policy row is the schema default, not a settings error',
+      () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
+      ..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            handler.reject(
+              DioException(
+                requestOptions: options,
+                type: DioExceptionType.badResponse,
+                response: Response<Map<String, dynamic>>(
+                  requestOptions: options,
+                  statusCode: 404,
+                  data: const {'message': 'transition policy not found'},
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    final transitions = TransitionRepository(dio);
+    final policy = await transitions.fetchPolicy();
+    expect(policy.minimumConfirmers, 2);
+    expect(policy.waitingPeriodDays, 7);
+    expect(policy.summary, '확인자 2명 동의 + 7일 대기');
+    dio.close();
+  });
+
   test('patching the interval leaves the other policy fields alone', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
       ..interceptors.add(

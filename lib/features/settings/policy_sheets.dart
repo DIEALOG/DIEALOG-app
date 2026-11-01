@@ -117,7 +117,7 @@ class _IntervalSheetState extends ConsumerState<_IntervalSheet> {
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      messenger.showSnackBar(SnackBar(content: Text(e.userMessage)));
     }
   }
 
