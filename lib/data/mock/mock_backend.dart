@@ -36,6 +36,9 @@ class MockBackend {
   final _confirmerTokens = <String, String>{};
   final _cases = <Json>[];
   final _confirmations = <Json>[];
+  final _tasks = <Json>[];
+  final _taskTokens = <String, ({String taskId, String stakeholderId})>{};
+  final _reportedTaskTokens = <String, bool>{};
 
   late Json _user;
   late Json _config;
@@ -177,8 +180,16 @@ class MockBackend {
           )
           .length;
       if (agreed >= (item['minimum_confirmers_snapshot'] as int)) {
-        item['status'] = 'waiting_period';
+        final waitingDays = item['waiting_period_days_snapshot'] as int;
         item['waiting_started_at'] = _now();
+        if (waitingDays == 0) {
+          item['status'] = 'confirmed';
+          item['confirmed_at'] = _now();
+          _createTasks(item);
+        } else {
+          item['status'] = 'waiting_period';
+          item['eligible_at'] = _daysFromNow(waitingDays);
+        }
       }
       return MockResult(200, response);
     }
@@ -404,6 +415,90 @@ class MockBackend {
           if (entry['transition_case_id'] == item['id']) entry,
       ]);
     }
+    if (verb == 'GET' &&
+        match(['transition', 'protected', 'cases', '*', 'tasks'])) {
+      final item = _requireCase(at(3), _user['id'] as String);
+      return MockResult(200, [
+        for (final task in _tasks)
+          if (task['transition_case_id'] == item['id']) task,
+      ]);
+    }
+    if (verb == 'POST' &&
+        match(['transition', 'protected', 'tasks', '*', 'request'])) {
+      final task = _find(_tasks, at(3));
+      if (task == null) throw const MockApiError(404, '처리 작업을 찾을 수 없어요.');
+      final item = _requireCase(
+        task['transition_case_id'] as String,
+        _user['id'] as String,
+      );
+      if (item['status'] != 'confirmed') {
+        throw const MockApiError(400, '전환이 확정된 뒤 요청할 수 있어요.');
+      }
+      if (task['status'] == 'completed' || task['status'] == 'skipped') {
+        return MockResult(200, {'task': task, 'requests': <Json>[]});
+      }
+      final account = _requireAccount(task['account_id'] as String);
+      final requests = <Json>[];
+      for (final stakeholderId in account['stakeholder_ids'] as List) {
+        final stakeholder = _requireStakeholder(stakeholderId as String);
+        final replaced = [
+          for (final entry in _taskTokens.entries)
+            if (entry.value.taskId == task['id'] &&
+                entry.value.stakeholderId == stakeholderId)
+              entry.key,
+        ];
+        for (final oldToken in replaced) {
+          _taskTokens.remove(oldToken);
+          _reportedTaskTokens.remove(oldToken);
+        }
+        final token = _id('task-token');
+        _taskTokens[token] = (
+          taskId: task['id'] as String,
+          stakeholderId: stakeholderId,
+        );
+        requests.add({
+          'assignee_id': _id('assignee'),
+          'stakeholder_id': stakeholderId,
+          'name': stakeholder['name'],
+          'email': stakeholder['email'],
+          'phone': stakeholder['phone'],
+          'token': token,
+          'expires_at': _daysFromNow(7),
+        });
+      }
+      if (requests.isEmpty) {
+        throw const MockApiError(400, '이 계정에 지정된 관계자가 없어요.');
+      }
+      task['status'] = 'in_progress';
+      task['request_count'] = (task['request_count'] as int) + 1;
+      task['started_at'] ??= _now();
+      task['completed_at'] = null;
+      task['failure_reason'] = null;
+      return MockResult(200, {'task': task, 'requests': requests});
+    }
+    if (verb == 'POST' &&
+        match(['transition', 'stakeholder-tasks', 'result'])) {
+      final token = data['token'] as String? ?? '';
+      final details = _taskTokens[token];
+      if (details == null) {
+        throw const MockApiError(400, '처리 코드가 유효하지 않아요.');
+      }
+      final task = _find(_tasks, details.taskId)!;
+      if (data['success'] is! bool) {
+        throw const MockApiError(400, '처리 결과를 선택해 주세요.');
+      }
+      if (task['status'] == 'completed' || task['status'] == 'failed') {
+        if (_reportedTaskTokens[token] == data['success']) {
+          return MockResult(200, task);
+        }
+        throw const MockApiError(400, '이미 다른 결과로 보고했어요.');
+      }
+      _reportedTaskTokens[token] = data['success'] as bool;
+      task['status'] = data['success'] == true ? 'completed' : 'failed';
+      task['completed_at'] = _now();
+      task['failure_reason'] = data['success'] == true ? null : data['message'];
+      return MockResult(200, task);
+    }
 
     throw const MockApiError(404, '아직 준비되지 않은 요청이에요.');
   }
@@ -562,6 +657,23 @@ class MockBackend {
     };
     _aliveChecks.add(check);
     return MockResult(201, check);
+  }
+
+  void _createTasks(Json item) {
+    for (final account in _accounts) {
+      final action = account['action'] as Json;
+      _tasks.add({
+        'id': _id('task'),
+        'transition_case_id': item['id'],
+        'account_id': account['id'],
+        'action_snapshot': action['action'],
+        'action_message_snapshot': action['message'],
+        'status': 'pending',
+        'request_count': 0,
+        'created_at': _now(),
+        'updated_at': _now(),
+      });
+    }
   }
 
   // ----------------------------------------------------------------- views

@@ -19,6 +19,7 @@ import 'repositories/mock/verification_repository.dart';
 import 'repositories/profile_repository.dart';
 import 'repositories/stakeholder_repository.dart';
 import 'repositories/transition_repository.dart';
+import 'repositories/stakeholder_task_repository.dart';
 
 final tokenStorageProvider = Provider<TokenStorage>(
   (ref) => SecureTokenStorage(),
@@ -86,6 +87,10 @@ final stakeholderRepositoryProvider = Provider(
 
 final transitionRepositoryProvider = Provider(
   (ref) => TransitionRepository(ref.watch(dioProvider)),
+);
+
+final stakeholderTaskRepositoryProvider = Provider(
+  (ref) => StakeholderTaskRepository(ref.watch(dioProvider)),
 );
 
 final confirmerRepositoryProvider = Provider(

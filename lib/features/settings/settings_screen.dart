@@ -14,6 +14,7 @@ import 'settings_providers.dart';
 import '../transition/invitation_screen.dart';
 import '../transition/confirmer_cases_screen.dart';
 import '../transition/owner_transition_screen.dart';
+import '../transition/stakeholder_task_result_screen.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -176,6 +177,14 @@ class _Body extends ConsumerWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const ConfirmerCasesScreen(),
+              ),
+            ),
+          ),
+          _ValueRow(
+            label: '계정 처리 결과 제출',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const StakeholderTaskResultScreen(),
               ),
             ),
           ),

@@ -8,6 +8,7 @@ import '../../core/widgets/screen_header.dart';
 import '../../data/models/alive_check.dart';
 import '../../data/models/transition_case.dart';
 import '../../data/providers.dart';
+import 'account_tasks_screen.dart';
 
 class OwnerTransitionOverview {
   const OwnerTransitionOverview(this.cases, this.checks);
@@ -315,6 +316,19 @@ class _OwnerCaseScreenState extends ConsumerState<OwnerCaseScreen> {
                             '확인자 ${i + 1}',
                             confirmations[i].decision.label,
                           ),
+                        if (item.status == TransitionCaseStatus.confirmed) ...[
+                          const SizedBox(height: 28),
+                          OutlinedButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    AccountTasksScreen(caseId: item.id),
+                              ),
+                            ),
+                            child: const Text('계정 처리 작업 보기'),
+                          ),
+                        ],
                         if (item.canCancel) ...[
                           const SizedBox(height: 32),
                           OutlinedButton(
