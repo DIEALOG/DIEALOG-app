@@ -238,6 +238,26 @@ class MockBackend {
       _requireLegacy(at(2));
       final account = _requireAccount(at(4));
       if (verb == 'GET') return MockResult(200, _accountDetailJson(account));
+      if (verb == 'PUT') {
+        // Omitting a credential leaves the stored one alone, like the server.
+        for (final key in [
+          'name',
+          'type',
+          'action',
+          'account_id',
+          'account_password',
+          'data_location',
+        ]) {
+          if (data[key] != null) account[key] = data[key];
+        }
+        account['stakeholder_ids'] = List<String>.from(
+          (data['stakeholder_ids'] as List?) ?? const [],
+        );
+        account['stakeholder_group_ids'] = List<String>.from(
+          (data['stakeholder_group_ids'] as List?) ?? const [],
+        );
+        return MockResult(200, _accountDetailJson(account));
+      }
       if (verb == 'DELETE') {
         _accounts.remove(account);
         return const MockResult(200, {'message': 'deleted'});
@@ -313,6 +333,31 @@ class MockBackend {
         return MockResult(200, [for (final w in _lastWords) _lastWordJson(w)]);
       }
       if (verb == 'POST') return _createLastWord(data);
+    }
+    // Matched before `/{id}`, which would otherwise swallow `to-me`.
+    if (verb == 'GET' && match(['last-word', 'protected', 'to-me', '*'])) {
+      final myStakeholderIds = {
+        for (final person in _stakeholders)
+          if ((person['email'] != null && person['email'] == _user['email']) ||
+              (person['phone'] != null &&
+                  person['phone'] == _user['phone_number']))
+            person['id'],
+      };
+      return MockResult(200, [
+        for (final w in _lastWords)
+          if (w['user_id'] == at(3) &&
+              ((w['receiver_ids'] as List).any(myStakeholderIds.contains) ||
+                  _groups.any(
+                    (group) =>
+                        (w['receiver_group_ids'] as List).contains(
+                          group['id'],
+                        ) &&
+                        (group['stakeholder_ids'] as List).any(
+                          myStakeholderIds.contains,
+                        ),
+                  )))
+            _lastWordJson(w),
+      ]);
     }
     if (match(['last-word', 'protected', '*'])) {
       final word = _requireLastWord(at(2));
@@ -544,8 +589,7 @@ class MockBackend {
     if (verb == 'GET' && match(['notification', 'protected'])) {
       return MockResult(200, List<Json>.from(_notifications.reversed));
     }
-    if (verb == 'GET' &&
-        match(['notification', 'protected', 'unread-count'])) {
+    if (verb == 'GET' && match(['notification', 'protected', 'unread-count'])) {
       return MockResult(200, {
         'count': _notifications.where((item) => item['is_read'] != true).length,
       });
@@ -926,13 +970,9 @@ class MockBackend {
       if (status != 'pending' && status != 'accepted') continue;
       if (confirmer['user_id'] == _user['id']) continue;
       final matchesEmail =
-          email != null &&
-          email.isNotEmpty &&
-          confirmer['email'] == email;
+          email != null && email.isNotEmpty && confirmer['email'] == email;
       final matchesPhone =
-          phone != null &&
-          phone.isNotEmpty &&
-          confirmer['phone'] == phone;
+          phone != null && phone.isNotEmpty && confirmer['phone'] == phone;
       if (!matchesEmail && !matchesPhone) continue;
       if (status == 'pending') {
         confirmer['status'] = 'accepted';
@@ -964,13 +1004,9 @@ class MockBackend {
         continue;
       }
       final matchesEmail =
-          email != null &&
-          email.isNotEmpty &&
-          confirmer['email'] == email;
+          email != null && email.isNotEmpty && confirmer['email'] == email;
       final matchesPhone =
-          phone != null &&
-          phone.isNotEmpty &&
-          confirmer['phone'] == phone;
+          phone != null && phone.isNotEmpty && confirmer['phone'] == phone;
       if (!matchesEmail && !matchesPhone) continue;
       seen.add(ownerId);
       final owner = _owners[ownerId];

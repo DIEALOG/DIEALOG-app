@@ -14,7 +14,7 @@ import '../../data/models/profile.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
 import '../../data/providers.dart';
-import '../../data/repositories/mock/afterlife_repository.dart';
+import '../../data/repositories/entrusted_repository.dart';
 import '../afterlife/afterlife_screen.dart';
 import '../legacy/legacy_providers.dart';
 import '../last_word/letter_edit_screen.dart';
@@ -41,7 +41,7 @@ class HomeSnapshot {
   final List<Stakeholder> stakeholders;
   final List<StakeholderGroup> groups;
   final List<LastWord> lastWords;
-  final List<EntrustedRecord> entrusted;
+  final List<EntrustedOwner> entrusted;
   final List<TransitionConfirmer> confirmers;
 }
 
@@ -55,7 +55,9 @@ final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
     stakeholders.list(),
     stakeholders.listGroups(),
     ref.watch(lastWordRepositoryProvider).list(),
-    ref.watch(afterlifeRepositoryProvider).listEntrusted(),
+    ref.watch(entrustedRepositoryProvider).listOwners().onError(
+      (error, stackTrace) => <EntrustedOwner>[],
+    ),
     ref.watch(transitionRepositoryProvider).listConfirmers(),
   ]);
   return HomeSnapshot(
@@ -64,7 +66,7 @@ final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
     stakeholders: results[2] as List<Stakeholder>,
     groups: results[3] as List<StakeholderGroup>,
     lastWords: results[4] as List<LastWord>,
-    entrusted: results[5] as List<EntrustedRecord>,
+    entrusted: results[5] as List<EntrustedOwner>,
     confirmers: results[6] as List<TransitionConfirmer>,
   );
 });
@@ -234,11 +236,12 @@ class _HomeBody extends ConsumerWidget {
             onOpenLetters: () => onSelectTab(3),
             onOpenPeople: () => onSelectTab(2),
           ),
-          if (data.entrusted.isNotEmpty) ...[
+          if (data.entrusted.any((o) => o.hasAnything)) ...[
             const SizedBox(height: 32),
             Text('맡은 기록', style: AppText.section),
             const SizedBox(height: 14),
-            for (final record in data.entrusted) _EntrustedRow(record: record),
+            for (final item in data.entrusted)
+              if (item.hasAnything) _EntrustedRow(item: item),
           ],
           if (todos.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -534,17 +537,26 @@ class _SummaryStat extends StatelessWidget {
 }
 
 class _EntrustedRow extends StatelessWidget {
-  const _EntrustedRow({required this.record});
+  const _EntrustedRow({required this.item});
 
-  final EntrustedRecord record;
+  final EntrustedOwner item;
+
+  String get _caption {
+    if (item.error != null) return item.error!;
+    if (item.tasks.isEmpty) {
+      return item.activeCase != null
+          ? '사후 전환 확인 중'
+          : '남긴 말 ${item.letters.length}통';
+    }
+    return '맡은 데이터 ${item.tasks.length}개 중 ${item.doneCount}개 완료';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final done = record.status == EntrustedRecordStatus.done;
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => EntrustedDetailScreen(recordId: record.id),
+          builder: (_) => EntrustedOwnerScreen(ownerId: item.owner.id),
         ),
       ),
       child: Padding(
@@ -555,7 +567,7 @@ class _EntrustedRow extends StatelessWidget {
               radius: 18,
               backgroundColor: AppColors.inkDeep,
               child: Text(
-                firstCharacter(record.ownerName),
+                firstCharacter(item.owner.name),
                 style: AppText.section.copyWith(
                   color: AppColors.white,
                   fontSize: 14,
@@ -568,12 +580,9 @@ class _EntrustedRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('${record.ownerName} 님의 기록', style: AppText.section),
+                  Text('${item.owner.name} 님의 기록', style: AppText.section),
                   const SizedBox(height: 2),
-                  Text(
-                    done ? '사후 공개됨 · 처리 완료' : '사후 공개됨 · 처리 필요',
-                    style: AppText.helper.copyWith(height: 1),
-                  ),
+                  Text(_caption, style: AppText.helper.copyWith(height: 1)),
                 ],
               ),
             ),

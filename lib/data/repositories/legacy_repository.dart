@@ -6,12 +6,11 @@ import '../models/json.dart';
 import '../models/legacy.dart';
 
 class LegacyRepository {
-  LegacyRepository(this._dio, {this.allowAccountReplacement = false});
+  LegacyRepository(this._dio);
 
   static const _base = '/legacy/protected';
 
   final Dio _dio;
-  final bool allowAccountReplacement;
 
   /// `GET /legacy/protected` returns a bare array of legacies, each with its
   /// accounts in list shape (ids only, no credentials).
@@ -60,25 +59,16 @@ class LegacyRepository {
   Future<void> removeAccount(String legacyId, String accountId) =>
       guardApi(() => _dio.delete<Json>('$_base/$legacyId/account/$accountId'));
 
-  /// The API has no account update endpoint, so an edit is a delete followed
-  /// by a create. The live server's credential store does not safely support
-  /// that sequence, so it is only allowed against the in-memory mock backend.
-  Future<Account> replaceAccount(String legacyId, Account account) async {
-    if (!allowAccountReplacement) {
-      throw const ApiException('서버에 계정 수정 기능이 없어 안전하게 저장할 수 없어요.');
-    }
-    final created = await addAccount(legacyId, account);
-    if (account.id.isEmpty) return created;
-    try {
-      await removeAccount(legacyId, account.id);
-    } on ApiException catch (e) {
-      // The new copy is already stored, so say so rather than look like the
-      // edit was lost.
-      throw ApiException(
-        '변경 사항은 저장했지만 이전 항목을 지우지 못했어요. 목록에서 중복을 확인해 주세요. (${e.message})',
-        statusCode: e.statusCode,
-      );
-    }
-    return created;
+  /// `PUT /legacy/protected/{id}/account/{accountId}` keeps the account id, so
+  /// an edit no longer has to delete and recreate. Omitting `account_password`
+  /// leaves the stored credential untouched.
+  Future<Account> updateAccount(String legacyId, Account account) async {
+    final res = await guardApi(
+      () => _dio.put<Json>(
+        '$_base/$legacyId/account/${account.id}',
+        data: account.toJson(),
+      ),
+    );
+    return Account.fromJson(res.data!);
   }
 }

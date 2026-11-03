@@ -8,9 +8,14 @@ import '../../core/widgets/primary_button.dart';
 import '../../data/providers.dart';
 
 class StakeholderTaskResultScreen extends ConsumerStatefulWidget {
-  const StakeholderTaskResultScreen({super.key, this.initialToken});
+  const StakeholderTaskResultScreen({
+    super.key,
+    this.initialToken,
+    this.onSubmitted,
+  });
 
   final String? initialToken;
+  final VoidCallback? onSubmitted;
 
   @override
   ConsumerState<StakeholderTaskResultScreen> createState() =>
@@ -69,6 +74,7 @@ class _StakeholderTaskResultScreenState
             message: message.text.trim().isEmpty ? null : message.text.trim(),
           );
       if (mounted) setState(() => result = task.status.label);
+      widget.onSubmitted?.call();
       code.clear();
     } catch (failure) {
       if (mounted) {

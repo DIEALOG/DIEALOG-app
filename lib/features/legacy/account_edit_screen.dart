@@ -19,9 +19,7 @@ import 'widgets/form_fields.dart';
 
 /// `06-1 · 처리 지침 편집`
 ///
-/// The API has no account update endpoint, so saving recreates the account and
-/// pops the new id back to the detail screen in mock mode. Live saves are
-/// rejected by [LegacyRepository] to avoid losing stored credentials.
+/// Saves the processing instructions and audience on the existing account.
 class AccountEditScreen extends ConsumerStatefulWidget {
   const AccountEditScreen({
     super.key,
@@ -115,7 +113,7 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
     try {
       final saved = await ref
           .read(legacyRepositoryProvider)
-          .replaceAccount(
+          .updateAccount(
             widget.legacyId,
             account.copyWith(
               action: AccountAction(

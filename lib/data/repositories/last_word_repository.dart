@@ -37,4 +37,13 @@ class LastWordRepository {
 
   Future<void> delete(String id) =>
       guardApi(() => _dio.delete<Json>('$_base/$id'));
+
+  /// Letters [ownerId] addressed to the signed-in user, directly or through a
+  /// group. Returns an empty list until that owner's records open up.
+  Future<List<LastWord>> listAddressedToMe(String ownerId) async {
+    final res = await guardApi(
+      () => _dio.get<List<dynamic>>('$_base/to-me/$ownerId'),
+    );
+    return parseList(res.data, LastWord.fromJson);
+  }
 }

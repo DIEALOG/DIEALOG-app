@@ -14,7 +14,7 @@ import 'repositories/auth_repository.dart';
 import 'repositories/confirmer_repository.dart';
 import 'repositories/last_word_repository.dart';
 import 'repositories/legacy_repository.dart';
-import 'repositories/mock/afterlife_repository.dart';
+import 'repositories/entrusted_repository.dart';
 import 'repositories/mock/settings_repository.dart';
 import 'repositories/mock/verification_repository.dart';
 import 'repositories/notification_repository.dart';
@@ -81,10 +81,7 @@ final profileRepositoryProvider = Provider(
 );
 
 final legacyRepositoryProvider = Provider(
-  (ref) => LegacyRepository(
-    ref.watch(dioProvider),
-    allowAccountReplacement: Env.useMockApi,
-  ),
+  (ref) => LegacyRepository(ref.watch(dioProvider)),
 );
 
 final stakeholderRepositoryProvider = Provider(
@@ -124,6 +121,11 @@ final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => MockSettingsRepository(),
 );
 
-final afterlifeRepositoryProvider = Provider<AfterlifeRepository>(
-  (ref) => MockAfterlifeRepository(seeded: Env.useMockApi),
+final entrustedRepositoryProvider = Provider(
+  (ref) => EntrustedRepository(
+    transitions: ref.watch(transitionRepositoryProvider),
+    confirmers: ref.watch(confirmerRepositoryProvider),
+    lastWords: ref.watch(lastWordRepositoryProvider),
+    sessions: ref.watch(confirmerSessionStoreProvider),
+  ),
 );

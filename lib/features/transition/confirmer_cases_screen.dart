@@ -34,7 +34,13 @@ final confirmerInboxProvider = FutureProvider.autoDispose<List<ConfirmerInbox>>(
             .watch(transitionRepositoryProvider)
             .claimAccess();
         for (final access in claimed) {
-          await store.upsert(ConfirmerSession.fromAccess(access));
+          final fresh = ConfirmerSession.fromAccess(access);
+          final previous = (await store.read())
+              .where((item) => item.confirmerId == fresh.confirmerId)
+              .firstOrNull;
+          await store.upsert(
+            previous == null ? fresh : fresh.withCaseIds(previous.knownCaseIds),
+          );
         }
       } on ApiException {
         // Older servers have no claim endpoint; local sessions still apply.
@@ -46,11 +52,13 @@ final confirmerInboxProvider = FutureProvider.autoDispose<List<ConfirmerInbox>>(
       for (final session in sessions)
         () async {
           try {
-            return ConfirmerInbox(
-              session,
-              await repository.listCases(session.authToken),
-              null,
-            );
+            final cases = await repository.listCases(session.authToken);
+            if (cases.isNotEmpty) {
+              await store.upsert(
+                session.withCaseIds(cases.map((item) => item.id)),
+              );
+            }
+            return ConfirmerInbox(session, cases, null);
           } on ApiException catch (error) {
             return ConfirmerInbox(session, const [], error.userMessage);
           }
@@ -157,10 +165,7 @@ class ConfirmerCasesScreen extends ConsumerWidget {
                     ),
                   for (final entry in entries) ...[
                     const SizedBox(height: 20),
-                    Text(
-                      '확인자 · ${entry.session.name}',
-                      style: AppText.section,
-                    ),
+                    Text('확인자 · ${entry.session.name}', style: AppText.section),
                     if (entry.error != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 12),
@@ -253,6 +258,9 @@ class ConfirmerCasesScreen extends ConsumerWidget {
       final item = await ref
           .read(confirmerRepositoryProvider)
           .startCase(session.authToken);
+      await ref
+          .read(confirmerSessionStoreProvider)
+          .upsert(session.withCaseIds([item.id]));
       ref.invalidate(confirmerInboxProvider);
       if (context.mounted) {
         await Navigator.of(context).push(
@@ -296,9 +304,16 @@ class _ConfirmerCaseDetailScreenState
   String? _error;
   TransitionDecision? _decision;
 
-  Future<TransitionCase> _reload() => ref
-      .read(confirmerRepositoryProvider)
-      .getCase(widget.session.authToken, widget.caseId);
+  Future<TransitionCase> _reload() async {
+    final store = ref.read(confirmerSessionStoreProvider);
+    final saved = (await store.read())
+        .where((item) => item.confirmerId == widget.session.confirmerId)
+        .firstOrNull;
+    await store.upsert((saved ?? widget.session).withCaseIds([widget.caseId]));
+    return ref
+        .read(confirmerRepositoryProvider)
+        .getCase(widget.session.authToken, widget.caseId);
+  }
 
   Future<void> _submit(TransitionDecision decision) async {
     final approved = await showDialog<bool>(

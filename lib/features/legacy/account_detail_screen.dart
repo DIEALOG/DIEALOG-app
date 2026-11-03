@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/config/env.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -32,13 +31,13 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
 
   AccountKey get _key => (legacyId: widget.legacyId, accountId: _accountId);
 
-  /// Editing recreates the account, so the screen follows the new id.
+  /// The update endpoint preserves the account id.
   Future<void> _edit() async {
-    final replacement = await context.push<String>(
+    final savedId = await context.push<String>(
       Routes.accountEditOf(widget.legacyId, _accountId),
     );
-    if (!mounted || replacement == null) return;
-    setState(() => _accountId = replacement);
+    if (!mounted || savedId == null) return;
+    setState(() => _accountId = savedId);
   }
 
   @override
@@ -50,13 +49,7 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
           children: [
             ScreenHeader(
               actionLabel: '수정',
-              onAction: Env.useMockApi
-                  ? ((account.value?.hasCredentials ?? false) ? _edit : null)
-                  : () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('서버에 계정 수정 기능이 없어 안전하게 저장할 수 없어요.'),
-                      ),
-                    ),
+              onAction: account.asData != null ? _edit : null,
             ),
             Expanded(
               child: account.when(
