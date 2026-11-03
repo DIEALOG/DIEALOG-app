@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/config/env.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
@@ -49,10 +50,13 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
           children: [
             ScreenHeader(
               actionLabel: '수정',
-              // Editing recreates the account, so it needs the credentials.
-              onAction: account.value?.hasCredentials ?? false
-                  ? _edit
-                  : null,
+              onAction: Env.useMockApi
+                  ? ((account.value?.hasCredentials ?? false) ? _edit : null)
+                  : () => ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('서버에 계정 수정 기능이 없어 안전하게 저장할 수 없어요.'),
+                      ),
+                    ),
             ),
             Expanded(
               child: account.when(
@@ -99,7 +103,10 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 3),
         Text(account.name, style: AppText.screenTitle),
         const SizedBox(height: 23),
-        Text('처리 지침', style: AppText.listCaption.copyWith(letterSpacing: -0.16)),
+        Text(
+          '처리 지침',
+          style: AppText.listCaption.copyWith(letterSpacing: -0.16),
+        ),
         const SizedBox(height: 4),
         Text(
           account.action?.kind.label ?? '지정 안 함',
@@ -112,10 +119,7 @@ class _Body extends StatelessWidget {
         const SizedBox(height: 32),
         AccountAudienceSection(account: account),
         const SizedBox(height: 32),
-        AccountInfoSection(
-          account: account,
-          error: detail.credentialError,
-        ),
+        AccountInfoSection(account: account, error: detail.credentialError),
       ],
     );
   }

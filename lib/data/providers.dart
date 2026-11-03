@@ -81,7 +81,10 @@ final profileRepositoryProvider = Provider(
 );
 
 final legacyRepositoryProvider = Provider(
-  (ref) => LegacyRepository(ref.watch(dioProvider)),
+  (ref) => LegacyRepository(
+    ref.watch(dioProvider),
+    allowAccountReplacement: Env.useMockApi,
+  ),
 );
 
 final stakeholderRepositoryProvider = Provider(

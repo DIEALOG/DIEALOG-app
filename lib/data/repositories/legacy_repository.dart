@@ -6,11 +6,12 @@ import '../models/json.dart';
 import '../models/legacy.dart';
 
 class LegacyRepository {
-  LegacyRepository(this._dio);
+  LegacyRepository(this._dio, {this.allowAccountReplacement = false});
 
   static const _base = '/legacy/protected';
 
   final Dio _dio;
+  final bool allowAccountReplacement;
 
   /// `GET /legacy/protected` returns a bare array of legacies, each with its
   /// accounts in list shape (ids only, no credentials).
@@ -60,9 +61,12 @@ class LegacyRepository {
       guardApi(() => _dio.delete<Json>('$_base/$legacyId/account/$accountId'));
 
   /// The API has no account update endpoint, so an edit is a delete followed
-  /// by a create. [account] must carry every field the new one should keep,
-  /// including the password.
+  /// by a create. The live server's credential store does not safely support
+  /// that sequence, so it is only allowed against the in-memory mock backend.
   Future<Account> replaceAccount(String legacyId, Account account) async {
+    if (!allowAccountReplacement) {
+      throw const ApiException('서버에 계정 수정 기능이 없어 안전하게 저장할 수 없어요.');
+    }
     final created = await addAccount(legacyId, account);
     if (account.id.isEmpty) return created;
     try {

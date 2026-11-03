@@ -96,7 +96,7 @@ class _Body extends ConsumerWidget {
           ),
           const _SectionLabel('보안'),
           _SwitchRow(
-            label: 'Face ID로 앱 잠금',
+            label: '생체 인증으로 앱 잠금',
             value: local.lockByFaceId,
             onChanged: (v) => saveSecurity(local.copyWith(lockByFaceId: v)),
           ),

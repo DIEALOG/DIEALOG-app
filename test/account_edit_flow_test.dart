@@ -1,5 +1,6 @@
 import 'package:diealog_app/data/mock/mock_api_interceptor.dart';
 import 'package:diealog_app/data/mock/mock_backend.dart';
+import 'package:diealog_app/core/network/api_exception.dart';
 import 'package:diealog_app/data/models/account.dart';
 import 'package:diealog_app/data/models/stakeholder.dart';
 import 'package:diealog_app/data/repositories/legacy_repository.dart';
@@ -19,7 +20,7 @@ void main() {
           ),
         );
       addTearDown(dio.close);
-      final legacies = LegacyRepository(dio);
+      final legacies = LegacyRepository(dio, allowAccountReplacement: true);
       final stakeholders = StakeholderRepository(dio);
       final owner = await legacies.create('내 데이터');
       final person = await stakeholders.create(
@@ -52,4 +53,15 @@ void main() {
       expect(saved.id, isNot(original.id));
     },
   );
+
+  test('live account replacement is rejected before writing', () async {
+    final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'));
+    addTearDown(dio.close);
+    final legacies = LegacyRepository(dio);
+
+    await expectLater(
+      legacies.replaceAccount('legacy-id', const Account(name: '기존 계정')),
+      throwsA(isA<ApiException>()),
+    );
+  });
 }
