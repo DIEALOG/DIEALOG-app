@@ -227,22 +227,34 @@ class ConfirmStep extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final overview = ref.watch(dataOverviewProvider).value;
-    // name -> where the access comes from
-    final audience = <String, String>{};
-    if (overview != null) {
-      for (final id in groups) {
-        final group = overview.groups[id];
-        if (group == null) continue;
-        for (final member in group.stakeholders) {
-          audience[member.name] = group.name;
-        }
-      }
-      for (final id in people) {
-        final person = overview.people[id];
-        if (person != null) audience[person.name] = '개인 지정';
+    final snapshot = ref.watch(dataOverviewProvider);
+    if (snapshot.hasError) {
+      return Center(
+        child: TextButton(
+          onPressed: () => ref.invalidate(dataOverviewProvider),
+          child: const Text('공개 대상을 불러오지 못했어요. 다시 시도'),
+        ),
+      );
+    }
+    final overview = snapshot.value;
+    if (overview == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final sourceById = <String, String>{};
+    for (final id in groups) {
+      final group = overview.groups[id];
+      if (group == null) continue;
+      for (final memberId in group.stakeholderIds) {
+        sourceById[memberId] = group.name;
       }
     }
+    for (final id in people) {
+      sourceById[id] = '개인 지정';
+    }
+    final audience = AudienceSelection(
+      people: people,
+      groups: groups,
+    ).resolvedIds(overview.groups.values);
     final message = account.action?.message ?? '';
 
     return ListView(
@@ -265,7 +277,7 @@ class ConfirmStep extends ConsumerWidget {
             ),
           ],
         ),
-        for (final entry in audience.entries)
+        for (final id in audience)
           Container(
             height: 38,
             decoration: const BoxDecoration(
@@ -273,9 +285,12 @@ class ConfirmStep extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Text(entry.key, style: AppText.rowValue.copyWith(fontSize: 14)),
+                Text(
+                  overview.people[id]?.name ?? '관계자',
+                  style: AppText.rowValue.copyWith(fontSize: 14),
+                ),
                 const Spacer(),
-                Text(entry.value, style: AppText.listCaption),
+                Text(sourceById[id] ?? '개인 지정', style: AppText.listCaption),
               ],
             ),
           ),

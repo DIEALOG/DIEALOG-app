@@ -5,28 +5,59 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text.dart';
 import '../../../data/models/account.dart';
 import '../../../data/providers.dart';
+import '../../shared/audience_picker.dart';
 import '../../settings/settings_providers.dart';
+import '../legacy_providers.dart';
 
 /// `사후 열람`: who the account opens to, and where that comes from.
-class AccountAudienceSection extends StatelessWidget {
-  const AccountAudienceSection({super.key, required this.account});
+class AccountAudienceSection extends ConsumerWidget {
+  const AccountAudienceSection({
+    super.key,
+    required this.account,
+    this.selection,
+  });
 
   final Account account;
+  final AudienceSelection? selection;
 
   @override
-  Widget build(BuildContext context) {
-    final names = <String, String>{};
-    for (final group in account.stakeholderGroups) {
-      for (final member in group.stakeholders) {
-        names[member.id] = member.name;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final overview = ref.watch(dataOverviewProvider).asData?.value;
+    final people = {
+      for (final person in account.stakeholders) person.id: person,
+      for (final group in account.stakeholderGroups)
+        for (final person in group.stakeholders) person.id: person,
+      ...?overview?.people,
+    };
+    final groups = {
+      for (final group in account.stakeholderGroups) group.id: group,
+      ...?overview?.groups,
+    };
+    final personIds =
+        selection?.people ??
+        {
+          ...account.stakeholderIds,
+          for (final person in account.stakeholders) person.id,
+        };
+    final groupIds =
+        selection?.groups ??
+        {
+          ...account.stakeholderGroupIds,
+          for (final group in account.stakeholderGroups) group.id,
+        };
+    final ids = <String>{...personIds};
+    for (final groupId in groupIds) {
+      final group = groups[groupId];
+      if (group != null) {
+        ids.addAll(group.stakeholderIds);
+        ids.addAll(group.stakeholders.map((person) => person.id));
       }
     }
-    for (final person in account.stakeholders) {
-      names[person.id] = person.name;
-    }
+    ids.remove('');
+    final names = [for (final id in ids) people[id]?.name ?? '이름 미확인'];
     final sources = [
-      for (final group in account.stakeholderGroups) group.name,
-      for (final person in account.stakeholders) person.name,
+      for (final id in groupIds) groups[id]?.name ?? '그룹',
+      for (final id in personIds) people[id]?.name ?? '관계자',
     ];
 
     return Column(
@@ -37,14 +68,14 @@ class AccountAudienceSection extends StatelessWidget {
             Text('사후 열람', style: AppText.listTitle),
             const Spacer(),
             Text(
-              '${names.length}명',
+              '${ids.length}명',
               style: AppText.listTitle.copyWith(color: AppColors.inkDeep),
             ),
           ],
         ),
         const SizedBox(height: 7),
         Text(
-          names.isEmpty ? '아직 공개 대상을 지정하지 않았어요.' : names.values.join(', '),
+          ids.isEmpty ? '아직 공개 대상을 지정하지 않았어요.' : names.join(', '),
           style: AppText.rowValue.copyWith(height: 22.5 / 15),
         ),
         if (sources.isNotEmpty) ...[
@@ -84,9 +115,8 @@ class _AccountInfoSectionState extends ConsumerState<AccountInfoSection> {
           .authenticate('계정 비밀번호를 보려면 인증이 필요해요.');
       if (!ok) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('인증하지 못했어요.')));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('인증하지 못했어요.')));
         }
         return;
       }
@@ -185,10 +215,7 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 76,
-            child: Text(label, style: AppText.rowLabel),
-          ),
+          SizedBox(width: 76, child: Text(label, style: AppText.rowLabel)),
           const SizedBox(width: 20),
           Expanded(child: value),
           ?trailing,

@@ -23,6 +23,12 @@ class AudienceSelection {
     StakeholderGroup group,
     Iterable<StakeholderGroup> availableGroups,
   ) {
+    if (group.stakeholderIds.isEmpty) {
+      return AudienceSelection(
+        people: people,
+        groups: {...groups}..remove(group.id),
+      );
+    }
     final allSelected =
         group.stakeholderIds.isNotEmpty &&
         resolvedIds(availableGroups).containsAll(group.stakeholderIds);
@@ -89,20 +95,27 @@ class AudiencePicker extends StatelessWidget {
           for (final group in groups)
             _ChoiceRow(
               title: group.name,
-              subtitle: group.stakeholderIds
-                  .map(
-                    (id) => people.where((p) => p.id == id).firstOrNull?.name,
-                  )
-                  .whereType<String>()
-                  .join(', '),
+              subtitle: group.stakeholderIds.isEmpty
+                  ? '인원이 없는 그룹'
+                  : group.stakeholderIds
+                        .map(
+                          (id) =>
+                              people.where((p) => p.id == id).firstOrNull?.name,
+                        )
+                        .whereType<String>()
+                        .join(', '),
               value: group.stakeholderIds.isEmpty
-                  ? false
+                  ? selection.groups.contains(group.id)
                   : selected.containsAll(group.stakeholderIds)
                   ? true
                   : group.stakeholderIds.any(selected.contains)
                   ? null
                   : false,
-              onTap: () => onChanged(selection.toggleGroup(group, groups)),
+              onTap:
+                  group.stakeholderIds.isEmpty &&
+                      !selection.groups.contains(group.id)
+                  ? null
+                  : () => onChanged(selection.toggleGroup(group, groups)),
             ),
         ],
         if (people.isNotEmpty) ...[
@@ -145,7 +158,7 @@ class _ChoiceRow extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool? value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -160,7 +173,7 @@ class _ChoiceRow extends StatelessWidget {
           Checkbox(
             value: value,
             tristate: true,
-            onChanged: (_) => onTap(),
+            onChanged: onTap == null ? null : (_) => onTap!(),
             visualDensity: VisualDensity.compact,
             activeColor: AppColors.navy,
           ),

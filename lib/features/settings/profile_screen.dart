@@ -9,6 +9,7 @@ import '../../core/theme/app_text.dart';
 import '../../data/models/profile.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
+import '../auth/signup/signup_rules.dart';
 import 'settings_providers.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -105,7 +106,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _InfoRow(
               '전화번호',
               data.phoneNumber?.isNotEmpty == true
-                  ? data.phoneNumber!
+                  ? SignupRules.formatPhone(data.phoneNumber!)
                   : '등록되지 않음',
             ),
             const SizedBox(height: 28),

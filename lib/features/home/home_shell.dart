@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
@@ -9,15 +10,21 @@ import '../settings/settings_screen.dart';
 import '../stakeholder/people_screen.dart';
 import 'home_screen.dart';
 
-class HomeShell extends StatefulWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   @override
-  State<HomeShell> createState() => _HomeShellState();
+  ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends ConsumerState<HomeShell> {
   var _index = 0;
+
+  void _selectTab(int index) {
+    if (index == _index) return;
+    if (index == 0) ref.invalidate(homeSnapshotProvider);
+    setState(() => _index = index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,12 +32,12 @@ class _HomeShellState extends State<HomeShell> {
       body: SafeArea(
         child: IndexedStack(
           index: _index,
-          children: const [
-            HomeScreen(),
-            DataScreen(),
-            PeopleScreen(),
-            LettersScreen(),
-            SettingsScreen(),
+          children: [
+            HomeScreen(onSelectTab: _selectTab),
+            const DataScreen(),
+            const PeopleScreen(),
+            const LettersScreen(),
+            const SettingsScreen(),
           ],
         ),
       ),
@@ -50,7 +57,7 @@ class _HomeShellState extends State<HomeShell> {
                     child: _TabButton(
                       tab: tab,
                       selected: _index == tab.index,
-                      onTap: () => setState(() => _index = tab.index),
+                      onTap: () => _selectTab(tab.index),
                     ),
                   ),
               ],

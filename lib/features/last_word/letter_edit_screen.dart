@@ -6,11 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
-import '../../core/widgets/primary_button.dart';
 import '../../data/models/last_word.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../shared/audience_picker.dart';
+import '../shared/audience_select_screen.dart';
 import 'letter_draft_store.dart';
 import 'letter_providers.dart';
 
@@ -117,8 +117,11 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
   Future<void> _pickAudience() async {
     final selected = await Navigator.of(context).push<AudienceSelection>(
       MaterialPageRoute(
-        builder: (_) =>
-            _AudienceScreen(overview: widget.overview, initial: _selection),
+        builder: (_) => AudienceSelectScreen(
+          people: widget.overview.people,
+          groups: widget.overview.groups,
+          initial: _selection,
+        ),
       ),
     );
     if (selected != null && mounted) {
@@ -320,75 +323,6 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
                       _error!,
                       style: const TextStyle(color: AppColors.unread),
                     ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AudienceScreen extends StatefulWidget {
-  const _AudienceScreen({required this.overview, required this.initial});
-
-  final LetterOverview overview;
-  final AudienceSelection initial;
-
-  @override
-  State<_AudienceScreen> createState() => _AudienceScreenState();
-}
-
-class _AudienceScreenState extends State<_AudienceScreen> {
-  late AudienceSelection _selection = widget.initial;
-
-  @override
-  Widget build(BuildContext context) {
-    final ids = _selection.resolvedIds(widget.overview.groups);
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            SizedBox(
-              height: 56,
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                  ),
-                  Expanded(
-                    child: Text(
-                      '받는 사람 선택',
-                      style: AppText.section,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-            ),
-            Expanded(
-              child: AudiencePicker(
-                people: widget.overview.people,
-                groups: widget.overview.groups,
-                selection: _selection,
-                onChanged: (selection) =>
-                    setState(() => _selection = selection),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Column(
-                children: [
-                  Text('${ids.length}명 선택', style: AppText.listCaption),
-                  const SizedBox(height: 8),
-                  PrimaryButton(
-                    label: '다음',
-                    enabled: ids.isNotEmpty,
-                    onPressed: () => Navigator.pop(context, _selection),
-                  ),
                 ],
               ),
             ),

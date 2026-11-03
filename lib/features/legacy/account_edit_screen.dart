@@ -8,6 +8,10 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/account.dart';
 import '../../data/providers.dart';
+import '../home/home_screen.dart';
+import '../shared/audience_picker.dart';
+import '../shared/audience_select_screen.dart';
+import '../stakeholder/people_providers.dart';
 import 'legacy_providers.dart';
 import 'widgets/account_sections.dart';
 import 'widgets/action_method_sheet.dart';
@@ -35,6 +39,7 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
   final _message = TextEditingController();
 
   AccountActionKind? _kind;
+  AudienceSelection? _selection;
   var _busy = false;
   String? _error;
   var _loaded = false;
@@ -53,6 +58,37 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
     _loaded = true;
     _kind = account.action?.kind ?? AccountActionKind.delete;
     _message.text = account.action?.message ?? '';
+    _selection = AudienceSelection(
+      people: {
+        ...account.stakeholderIds,
+        for (final person in account.stakeholders) person.id,
+      },
+      groups: {
+        ...account.stakeholderGroupIds,
+        for (final group in account.stakeholderGroups) group.id,
+      },
+    );
+  }
+
+  Future<void> _pickAudience() async {
+    try {
+      final overview = await ref.read(dataOverviewProvider.future);
+      if (!mounted) return;
+      final selected = await Navigator.of(context).push<AudienceSelection>(
+        MaterialPageRoute(
+          builder: (_) => AudienceSelectScreen(
+            people: overview.people.values.toList(),
+            groups: overview.groups.values.toList(),
+            initial: _selection!,
+            allowEmpty: true,
+            buttonLabel: '선택 완료',
+          ),
+        ),
+      );
+      if (selected != null && mounted) setState(() => _selection = selected);
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.userMessage);
+    }
   }
 
   Future<void> _pickKind() async {
@@ -76,17 +112,23 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
       _error = null;
     });
     try {
-      final saved = await ref.read(legacyRepositoryProvider).replaceAccount(
+      final saved = await ref
+          .read(legacyRepositoryProvider)
+          .replaceAccount(
             widget.legacyId,
             account.copyWith(
               action: AccountAction(
                 kind: kind,
                 message: message.isEmpty ? null : message,
               ),
+              stakeholderIds: _selection!.people.toList(),
+              stakeholderGroupIds: _selection!.groups.toList(),
             ),
           );
       ref
         ..invalidate(dataOverviewProvider)
+        ..invalidate(homeSnapshotProvider)
+        ..invalidate(peopleOverviewProvider)
         ..invalidate(accountProvider(_key))
         ..invalidate(accountDetailProvider(_key));
       if (mounted) context.pop(saved.id);
@@ -125,10 +167,7 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
                 Expanded(child: _form(data)),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-                  child: _SaveButton(
-                    busy: _busy,
-                    onPressed: () => _save(data),
-                  ),
+                  child: _SaveButton(busy: _busy, onPressed: () => _save(data)),
                 ),
               ],
             );
@@ -168,7 +207,21 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
           ),
         ],
         const SizedBox(height: 36),
-        AccountAudienceSection(account: account),
+        InkWell(
+          onTap: _busy ? null : _pickAudience,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Row(
+              children: [
+                Text('공개 대상', style: AppText.listTitle),
+                const Spacer(),
+                Text('변경', style: AppText.headerAction),
+                const Icon(Icons.chevron_right, size: 18),
+              ],
+            ),
+          ),
+        ),
+        AccountAudienceSection(account: account, selection: _selection),
         const SizedBox(height: 32),
         AccountInfoSection(account: account),
       ],
@@ -236,9 +289,7 @@ class _SaveButton extends StatelessWidget {
           backgroundColor: AppColors.inkDeep,
           disabledBackgroundColor: AppColors.inkDeep.withValues(alpha: 0.38),
           foregroundColor: AppColors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
         child: busy
             ? const SizedBox(
