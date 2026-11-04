@@ -1,12 +1,17 @@
 import 'package:diealog_app/core/storage/confirmer_session_store.dart';
+import 'package:diealog_app/core/storage/entrusted_case_store.dart';
 import 'package:diealog_app/data/models/account_handling_task.dart';
+import 'package:diealog_app/data/models/app_notification.dart';
 import 'package:diealog_app/data/models/confirmer_access.dart';
 import 'package:diealog_app/data/models/designating_user.dart';
 import 'package:diealog_app/data/models/last_word.dart';
+import 'package:diealog_app/data/models/profile.dart';
 import 'package:diealog_app/data/models/transition_case.dart';
 import 'package:diealog_app/data/repositories/confirmer_repository.dart';
 import 'package:diealog_app/data/repositories/entrusted_repository.dart';
 import 'package:diealog_app/data/repositories/last_word_repository.dart';
+import 'package:diealog_app/data/repositories/notification_repository.dart';
+import 'package:diealog_app/data/repositories/profile_repository.dart';
 import 'package:diealog_app/data/repositories/transition_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,6 +66,12 @@ void main() {
       'id': 'task-1',
       'transition_case_id': 'case-a',
       'account_id': 'account-1',
+      'legacy_id': 'legacy-1',
+      'type': 'KakaoTalk',
+      'name': '카카오톡',
+      'account_identifier': 'seoyeon@example.com',
+      'account_password': 'private-password',
+      'data_location': '클라우드',
       'status': 'in_progress',
       'action_snapshot': 'backup-and-delete',
       'action_message_snapshot': '사진만 백업해 줘',
@@ -87,6 +98,10 @@ void main() {
     });
 
     expect(task.status, AccountHandlingStatus.inProgress);
+    expect(task.name, '카카오톡');
+    expect(task.accountIdentifier, 'seoyeon@example.com');
+    expect(task.accountPassword, 'private-password');
+    expect(task.dataLocation, '클라우드');
     expect(task.action.label, '백업 후 삭제');
     expect(task.canRequest, isTrue);
     expect(task.assignees, hasLength(2));
@@ -117,6 +132,9 @@ void main() {
         confirmers: confirmer,
         lastWords: letters,
         sessions: sessions,
+        notifications: _FakeNotificationRepository(),
+        profiles: _FakeProfileRepository(),
+        caseStore: InMemoryEntrustedCaseStore(),
       );
 
       final waiting = (await repository.listOwners()).single;
@@ -129,21 +147,89 @@ void main() {
       expect(letters.readCount, 1);
     },
   );
+
+  test('a non-confirmer keeps confirmed owner IDs after the notification is deleted', () async {
+    final notifications = _FakeNotificationRepository()
+      ..items = [
+        AppNotification.fromJson({
+          'id': 'notice-1',
+          'receiver_id': 'user-1',
+          'message': '전환 확정',
+          'is_read': false,
+          'type': 'transition',
+          'metadata': {
+            'type': 'transition_confirmed',
+            'target_user_id': 'owner-1',
+            'target_user_name': '보내는 사람',
+            'case_id': 'case-1',
+          },
+        }),
+      ];
+    final links = InMemoryEntrustedCaseStore();
+    final transitions = _FakeTransitionRepository()
+      ..owners = []
+      ..tasks = [
+        AccountHandlingTask.fromJson({
+          'id': 'task-1',
+          'transition_case_id': 'case-1',
+          'account_id': 'account-1',
+          'status': 'pending',
+          'action_snapshot': 'delete',
+          'request_count': 0,
+        }),
+      ];
+    final repository = EntrustedRepository(
+      transitions: transitions,
+      confirmers: _FakeConfirmerRepository(),
+      lastWords: _FakeLastWordRepository(),
+      sessions: InMemoryConfirmerSessionStore(),
+      notifications: notifications,
+      profiles: _FakeProfileRepository(),
+      caseStore: links,
+    );
+
+    final discovered = (await repository.listOwners()).single;
+    expect(discovered.owner.name, '보내는 사람');
+    expect(discovered.tasks.single.id, 'task-1');
+    expect(discovered.letters.single.title, '남긴 말');
+    notifications.items = [];
+    expect((await repository.listOwners()).single.tasks.single.id, 'task-1');
+    expect(await links.read('other-user'), isEmpty);
+  });
 }
 
 class _FakeTransitionRepository extends TransitionRepository {
   _FakeTransitionRepository() : super(Dio());
 
+  List<DesignatingUser> owners = [
+    const DesignatingUser(id: 'owner-1', name: '보내는 사람'),
+  ];
+  List<AccountHandlingTask> tasks = [];
+
   @override
   Future<List<ConfirmerAccess>> claimAccess() async => [];
 
   @override
-  Future<List<DesignatingUser>> listDesignatingUsers() async => [
-    const DesignatingUser(id: 'owner-1', name: '보내는 사람'),
-  ];
+  Future<List<DesignatingUser>> listDesignatingUsers() async => owners;
 
   @override
-  Future<List<AccountHandlingTask>> listTasks(String caseId) async => [];
+  Future<List<AccountHandlingTask>> listTasks(String caseId) async => tasks;
+}
+
+class _FakeNotificationRepository extends NotificationRepository {
+  _FakeNotificationRepository() : super(Dio());
+  List<AppNotification> items = [];
+
+  @override
+  Future<List<AppNotification>> list() async => items;
+}
+
+class _FakeProfileRepository extends ProfileRepository {
+  _FakeProfileRepository() : super(Dio());
+
+  @override
+  Future<Profile> fetch() async =>
+      const Profile(id: 'user-1', name: '받는 사람', email: 'me@example.com');
 }
 
 class _FakeConfirmerRepository extends ConfirmerRepository {

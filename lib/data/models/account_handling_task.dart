@@ -101,6 +101,12 @@ class AccountHandlingTask {
     required this.status,
     required this.action,
     required this.requestCount,
+    this.legacyId = '',
+    this.service = AccountService.other,
+    this.name = '',
+    this.accountIdentifier,
+    this.accountPassword,
+    this.dataLocation,
     this.actionMessage,
     this.failureReason,
     this.completedAt,
@@ -117,6 +123,12 @@ class AccountHandlingTask {
       action: AccountActionKind.fromWire(json['action_snapshot']),
       actionMessage: json['action_message_snapshot'] as String?,
       requestCount: json['request_count'] as int? ?? 0,
+      legacyId: json['legacy_id'] as String? ?? '',
+      service: AccountService.fromWire(json['type']),
+      name: json['name'] as String? ?? '',
+      accountIdentifier: json['account_identifier'] as String?,
+      accountPassword: json['account_password'] as String?,
+      dataLocation: json['data_location'] as String?,
       failureReason: json['failure_reason'] as String?,
       completedAt: parseDate(json['completed_at']),
       assignees: parseList(json['assignees'], TaskAssignee.fromJson),
@@ -131,6 +143,12 @@ class AccountHandlingTask {
   final AccountActionKind action;
   final String? actionMessage;
   final int requestCount;
+  final String legacyId;
+  final AccountService service;
+  final String name;
+  final String? accountIdentifier;
+  final String? accountPassword;
+  final String? dataLocation;
   final String? failureReason;
   final DateTime? completedAt;
   final List<TaskAssignee> assignees;

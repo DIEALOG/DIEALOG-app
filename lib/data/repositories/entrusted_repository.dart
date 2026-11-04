@@ -1,12 +1,16 @@
 import '../../core/network/api_exception.dart';
 import '../../core/storage/confirmer_session_store.dart';
+import '../../core/storage/entrusted_case_store.dart';
 import '../models/account_handling_task.dart';
+import '../models/app_notification.dart';
 import '../models/confirmer_access.dart';
 import '../models/designating_user.dart';
 import '../models/last_word.dart';
 import '../models/transition_case.dart';
 import 'confirmer_repository.dart';
 import 'last_word_repository.dart';
+import 'notification_repository.dart';
+import 'profile_repository.dart';
 import 'transition_repository.dart';
 
 /// One owner's records as seen by the signed-in stakeholder.
@@ -52,12 +56,41 @@ class EntrustedRepository {
     required this.confirmers,
     required this.lastWords,
     required this.sessions,
+    required this.notifications,
+    required this.profiles,
+    required this.caseStore,
   });
 
   final TransitionRepository transitions;
   final ConfirmerRepository confirmers;
   final LastWordRepository lastWords;
   final ConfirmerSessionStore sessions;
+  final NotificationRepository notifications;
+  final ProfileRepository profiles;
+  final EntrustedCaseStore caseStore;
+
+  /// Keep the routing IDs before a notification is read or deleted. The store
+  /// is keyed by the signed-in user, never shared across accounts on a device.
+  Future<void> rememberNotifications(List<AppNotification> items) async {
+    final profile = await profiles.fetch();
+    await _remember(profile.id, items);
+  }
+
+  Future<void> _remember(String userId, List<AppNotification> items) =>
+      caseStore.merge(userId, [
+        for (final item in items)
+          if (item.eventType == 'transition_confirmed' &&
+              (item.receiverId.isEmpty || item.receiverId == userId))
+            if (item.metadata['target_user_id'] is String &&
+                item.metadata['case_id'] is String)
+              EntrustedCaseLink(
+                ownerId: item.metadata['target_user_id'] as String,
+                ownerName: item.metadata['target_user_name'] is String
+                    ? item.metadata['target_user_name'] as String
+                    : '',
+                caseId: item.metadata['case_id'] as String,
+              ),
+      ]);
 
   /// Links any invitation that matches this login, so a reinstall still finds
   /// the owners who named this person. Older servers answer 404.
@@ -80,18 +113,54 @@ class EntrustedRepository {
   }
 
   Future<List<EntrustedOwner>> listOwners() async {
+    final profile = await profiles.fetch();
     final sessions = await syncSessions();
-    final owners = await transitions.listDesignatingUsers();
-    return Future.wait([for (final o in owners) _loadOwner(o, sessions)]);
+    // A stakeholder who was not a confirmer still receives a confirmed-case
+    // notification. Keep its IDs after the notification is deleted.
+    try {
+      await _remember(profile.id, await notifications.list());
+    } on ApiException {
+      // Saved links and confirmer sessions remain usable while notifications
+      // cannot be fetched.
+    }
+    final links = await caseStore.read(profile.id);
+    List<DesignatingUser> designating;
+    try {
+      designating = await transitions.listDesignatingUsers();
+    } on ApiException {
+      if (links.isEmpty) rethrow;
+      designating = [];
+    }
+    final byOwner = {for (final owner in designating) owner.id: owner};
+    for (final link in links) {
+      byOwner.putIfAbsent(
+        link.ownerId,
+        () => DesignatingUser(
+          id: link.ownerId,
+          name: link.ownerName.isNotEmpty ? link.ownerName : '보낸 사람',
+        ),
+      );
+    }
+    return Future.wait([
+      for (final owner in byOwner.values)
+        _loadOwner(owner, sessions, [
+          for (final link in links)
+            if (link.ownerId == owner.id) link,
+        ]),
+    ]);
   }
 
   Future<EntrustedOwner> _loadOwner(
     DesignatingUser owner,
     List<ConfirmerSession> linked,
+    List<EntrustedCaseLink> remembered,
   ) async {
     final session = linked.where((s) => s.ownerUserId == owner.id).firstOrNull;
     try {
-      final caseIds = <String>{...?session?.knownCaseIds};
+      final caseIds = <String>{
+        ...?session?.knownCaseIds,
+        for (final link in remembered) link.caseId,
+      };
       TransitionCase? active;
 
       if (session != null) {
@@ -110,7 +179,7 @@ class EntrustedRepository {
       }
 
       final tasks = <AccountHandlingTask>[];
-      var opened = false;
+      var opened = remembered.isNotEmpty;
       for (final caseId in caseIds) {
         if (session != null) {
           try {

@@ -54,6 +54,7 @@ class AppNotification {
   }
 
   String get title => switch (eventType) {
+    'transition_confirmed' => '사후 기록이 열렸어요',
     'confirmer_invitation' => '확인자 초대',
     'confirmer_invitation_accepted' => '확인자 초대 수락',
     'confirmer_invitation_declined' => '확인자 초대 거절',
@@ -66,6 +67,7 @@ class AppNotification {
   };
 
   String get caption => switch (eventType) {
+    'transition_confirmed' => '맡은 기록과 나에게 남긴 말을 확인해 주세요.',
     'confirmer_invitation' => '초대를 수락하면 사실 확인 역할을 맡게 돼요.',
     'confirmer_invitation_accepted' => '사후 전환 확인자 관리에서 확인할 수 있어요.',
     'confirmer_invitation_declined' => '확인자 초대 상태를 확인해 주세요.',

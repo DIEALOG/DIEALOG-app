@@ -7,6 +7,7 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/app_notification.dart';
 import '../../data/providers.dart';
+import '../afterlife/afterlife_screen.dart';
 import '../settings/confirmers_screen.dart';
 import '../transition/confirmer_cases_screen.dart';
 import '../transition/invitation_screen.dart';
@@ -152,9 +153,13 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ref.invalidate(unreadNotificationCountProvider);
     }
     if (!mounted) return;
+    if (item.eventType == 'transition_confirmed') {
+      ref.invalidate(entrustedOwnersProvider);
+    }
     final page = _destination(item);
     if (page != null) {
-      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+      await Navigator.of(context)
+          .push(MaterialPageRoute<void>(builder: (_) => page));
     }
   }
 
@@ -163,6 +168,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       return InvitationScreen(initialToken: item.invitationToken);
     }
     return switch (item.eventType) {
+      'transition_confirmed' =>
+        item.metadata['target_user_id'] is String
+            ? EntrustedOwnerScreen(
+                ownerId: item.metadata['target_user_id'] as String,
+              )
+            : const AfterlifeScreen(),
       'confirmer_invitation' => const InvitationScreen(),
       'confirmer_invitation_accepted' ||
       'confirmer_invitation_declined' => const ConfirmersScreen(),
@@ -195,9 +206,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       ref.invalidate(unreadNotificationCountProvider);
     } on ApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
   }

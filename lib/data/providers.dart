@@ -7,6 +7,7 @@ import '../core/network/auth_interceptor.dart';
 import '../core/storage/local_prefs.dart';
 import '../core/storage/token_storage.dart';
 import '../core/storage/confirmer_session_store.dart';
+import '../core/storage/entrusted_case_store.dart';
 import '../features/auth/auth_controller.dart';
 import 'mock/mock_api_interceptor.dart';
 import 'mock/mock_backend.dart';
@@ -30,6 +31,10 @@ final tokenStorageProvider = Provider<TokenStorage>(
 
 final confirmerSessionStoreProvider = Provider<ConfirmerSessionStore>(
   (ref) => SecureConfirmerSessionStore(),
+);
+
+final entrustedCaseStoreProvider = Provider<EntrustedCaseStore>(
+  (ref) => SecureEntrustedCaseStore(),
 );
 
 final localSettingsStoreProvider = Provider<LocalSettingsStore>(
@@ -127,5 +132,8 @@ final entrustedRepositoryProvider = Provider(
     confirmers: ref.watch(confirmerRepositoryProvider),
     lastWords: ref.watch(lastWordRepositoryProvider),
     sessions: ref.watch(confirmerSessionStoreProvider),
+    notifications: ref.watch(notificationRepositoryProvider),
+    profiles: ref.watch(profileRepositoryProvider),
+    caseStore: ref.watch(entrustedCaseStoreProvider),
   ),
 );

@@ -6,10 +6,12 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/account_handling_task.dart';
+import '../../data/models/account.dart';
 import '../../data/models/last_word.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/entrusted_repository.dart';
 import '../home/greeting.dart';
+import '../legacy/widgets/account_sections.dart';
 import 'handling_code_sheet.dart';
 
 final entrustedOwnersProvider =
@@ -60,7 +62,7 @@ class AfterlifeScreen extends ConsumerWidget {
                             child: Text(
                               items.isEmpty
                                   ? '표시할 인계 기록을 찾지 못했어요.\n'
-                                        '현재는 확인자로 연결된 사람의 기록을 조회할 수 있어요.'
+                                        '사후 전환이 확정되면 이곳에 나타나요.'
                                   : '아직 공개된 기록이 없어요.\n'
                                         '사후 전환이 확정되면 여기에 나타나요.',
                               style: AppText.body,
@@ -236,7 +238,10 @@ class _TaskRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(task.action.label, style: AppText.listTitle),
+                Text(
+                  task.name.isNotEmpty ? task.name : task.action.label,
+                  style: AppText.listTitle,
+                ),
                 const SizedBox(height: 3),
                 Text(
                   task.actionMessage?.isNotEmpty == true
@@ -291,6 +296,13 @@ class TaskDetailScreen extends ConsumerWidget {
                   Text('처리 방식', style: AppText.listCaption),
                   const SizedBox(height: 4),
                   Text(task.action.label, style: AppText.screenTitle),
+                  if (task.name.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      '${task.service.label} · ${task.name}',
+                      style: AppText.listCaption,
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   if (task.actionMessage?.isNotEmpty == true) ...[
                     Text('상세 지침', style: AppText.listCaption),
@@ -322,13 +334,22 @@ class TaskDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   const SizedBox(height: 22),
-                  Text('계정 정보', style: AppText.section),
-                  const SizedBox(height: 6),
-                  Text(
-                    '계정 아이디와 비밀번호는 아직 담당자에게 열리지 않아요. '
-                    '서버에 담당자용 조회 권한이 추가되어야 볼 수 있어요.',
-                    style: AppText.helper,
-                  ),
+                  if (task.accountIdentifier != null ||
+                      task.accountPassword != null ||
+                      task.dataLocation != null)
+                    AccountInfoSection(
+                      account: Account(
+                        name: task.name,
+                        accountId: task.accountIdentifier,
+                        accountPassword: task.accountPassword,
+                        dataLocation: task.dataLocation,
+                      ),
+                    )
+                  else ...[
+                    Text('계정 정보', style: AppText.section),
+                    const SizedBox(height: 6),
+                    Text('등록된 계정 정보가 없어요.', style: AppText.helper),
+                  ],
                   const SizedBox(height: 22),
                   Text('처리 기록', style: AppText.section),
                   const SizedBox(height: 6),
