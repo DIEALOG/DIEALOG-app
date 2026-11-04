@@ -39,6 +39,7 @@ class TransitionCase {
     this.eligibleAt,
     this.confirmedAt,
     this.cancelledAt,
+    this.reason,
   });
 
   factory TransitionCase.fromJson(Json json) => TransitionCase(
@@ -56,6 +57,7 @@ class TransitionCase {
     eligibleAt: DateTime.tryParse(json['eligible_at'] as String? ?? ''),
     confirmedAt: DateTime.tryParse(json['confirmed_at'] as String? ?? ''),
     cancelledAt: DateTime.tryParse(json['cancelled_at'] as String? ?? ''),
+    reason: json['reason'] as String?,
   );
 
   final String id;
@@ -69,10 +71,20 @@ class TransitionCase {
   final DateTime? confirmedAt;
   final DateTime? cancelledAt;
 
+  /// Why the confirmer started this case, as written when they requested it.
+  final String? reason;
+
   bool get canConfirm => status == TransitionCaseStatus.pendingConfirmation;
   bool get canCancel =>
       status == TransitionCaseStatus.pendingConfirmation ||
       status == TransitionCaseStatus.waitingPeriod;
+
+  /// The server re-checks waiting cases every 5 minutes, so a case past its
+  /// eligible time confirms on its own shortly.
+  bool get awaitingAutoConfirm =>
+      status == TransitionCaseStatus.waitingPeriod &&
+      eligibleAt != null &&
+      !DateTime.now().isBefore(eligibleAt!);
 }
 
 class TransitionConfirmation {

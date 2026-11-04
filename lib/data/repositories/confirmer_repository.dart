@@ -45,10 +45,11 @@ class ConfirmerRepository {
     return parseList(response.data, TransitionCase.fromJson);
   }
 
-  Future<TransitionCase> startCase(String authToken) async {
+  Future<TransitionCase> startCase(String authToken, {String? reason}) async {
     final response = await guardApi(
       () => _dio.post<Json>(
         '/transition/confirmer/cases',
+        data: compact({'reason': reason}),
         options: _confirmerOptions(authToken),
       ),
     );

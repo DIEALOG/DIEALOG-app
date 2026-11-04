@@ -10,6 +10,7 @@ import '../../data/models/designating_user.dart';
 import '../../data/models/transition_case.dart';
 import '../../data/providers.dart';
 import '../auth/auth_controller.dart';
+import 'transition_reason_sheet.dart';
 
 class ConfirmerInbox {
   const ConfirmerInbox(this.session, this.cases, this.error);
@@ -233,31 +234,12 @@ class ConfirmerCasesScreen extends ConsumerWidget {
     WidgetRef ref,
     ConfirmerSession session,
   ) async {
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('사후 전환 확인을 요청할까요?'),
-        content: const Text(
-          '이 확인자 자격이 연결된 사람의 사후 전환 절차가 '
-          '시작됩니다. 실제 사실을 확인한 뒤 진행해 주세요.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('취소'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('요청하기'),
-          ),
-        ],
-      ),
-    );
-    if (approved != true || !context.mounted) return;
+    final reason = await showTransitionReasonSheet(context, session.name);
+    if (reason == null || !context.mounted) return;
     try {
       final item = await ref
           .read(confirmerRepositoryProvider)
-          .startCase(session.authToken);
+          .startCase(session.authToken, reason: reason);
       await ref
           .read(confirmerSessionStoreProvider)
           .upsert(session.withCaseIds([item.id]));
@@ -397,6 +379,19 @@ class _ConfirmerCaseDetailScreenState
                   _InfoRow('요청일', _date(item.requestedAt)),
                   if (item.eligibleAt != null)
                     _InfoRow('공개 가능일', _date(item.eligibleAt!)),
+                  if (item.reason?.isNotEmpty == true) ...[
+                    const SizedBox(height: 20),
+                    Text('요청 사유', style: AppText.section),
+                    const SizedBox(height: 6),
+                    Text(item.reason!, style: AppText.paragraph),
+                  ],
+                  if (item.awaitingAutoConfirm) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      '대기 기간이 끝났어요. 서버가 5분마다 확인하므로 곧 사후 공개로 바뀝니다.',
+                      style: AppText.helper,
+                    ),
+                  ],
                   if (_decision != null) ...[
                     const SizedBox(height: 20),
                     Text('내 응답: ${_decision!.label}', style: AppText.section),

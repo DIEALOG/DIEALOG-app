@@ -304,6 +304,20 @@ class _OwnerCaseScreenState extends ConsumerState<OwnerCaseScreen> {
                         _DetailRow('대기 기간', '${item.waitingPeriodDays}일'),
                         if (item.eligibleAt != null)
                           _DetailRow('전환 가능일', _date(item.eligibleAt!)),
+                        if (item.reason?.isNotEmpty == true) ...[
+                          const SizedBox(height: 20),
+                          Text('요청 사유', style: AppText.section),
+                          const SizedBox(height: 6),
+                          Text(item.reason!, style: AppText.paragraph),
+                        ],
+                        if (item.awaitingAutoConfirm) ...[
+                          const SizedBox(height: 14),
+                          Text(
+                            '대기 기간이 끝났어요. 서버가 5분마다 확인하므로 곧 전환이 확정됩니다. '
+                            '그 전이라면 아직 취소할 수 있어요.',
+                            style: AppText.helper,
+                          ),
+                        ],
                         const SizedBox(height: 28),
                         Text('확인 결과', style: AppText.section),
                         if (confirmations.isEmpty)
