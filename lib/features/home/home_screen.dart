@@ -13,6 +13,7 @@ import '../../data/models/legacy.dart';
 import '../../data/models/profile.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
+import '../../data/models/transition_policy.dart';
 import '../../data/providers.dart';
 import '../../data/repositories/entrusted_repository.dart';
 import '../afterlife/afterlife_screen.dart';
@@ -20,10 +21,13 @@ import '../legacy/legacy_providers.dart';
 import '../last_word/letter_edit_screen.dart';
 import '../last_word/letter_providers.dart';
 import '../notifications/notification_providers.dart';
+import '../settings/confirmers_screen.dart';
 import '../settings/profile_screen.dart';
+import '../settings/settings_providers.dart';
 import '../stakeholder/people_providers.dart';
 import '../stakeholder/stakeholder_edit_screen.dart';
 import 'greeting.dart';
+import 'home_guide.dart';
 
 class HomeSnapshot {
   const HomeSnapshot({
@@ -34,6 +38,7 @@ class HomeSnapshot {
     required this.lastWords,
     required this.entrusted,
     required this.confirmers,
+    required this.policy,
   });
 
   final Profile profile;
@@ -43,12 +48,14 @@ class HomeSnapshot {
   final List<LastWord> lastWords;
   final List<EntrustedOwner> entrusted;
   final List<TransitionConfirmer> confirmers;
+  final TransitionPolicy policy;
 }
 
 final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
   ref,
 ) async {
   final stakeholders = ref.watch(stakeholderRepositoryProvider);
+  final transition = ref.watch(transitionRepositoryProvider);
   final results = await Future.wait<Object>([
     ref.watch(profileRepositoryProvider).fetch(),
     ref.watch(legacyRepositoryProvider).list(),
@@ -58,7 +65,8 @@ final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
     ref.watch(entrustedRepositoryProvider).listOwners().onError(
       (error, stackTrace) => <EntrustedOwner>[],
     ),
-    ref.watch(transitionRepositoryProvider).listConfirmers(),
+    transition.listConfirmers(),
+    transition.fetchPolicy(),
   ]);
   return HomeSnapshot(
     profile: results[0] as Profile,
@@ -68,6 +76,7 @@ final homeSnapshotProvider = FutureProvider.autoDispose<HomeSnapshot>((
     lastWords: results[4] as List<LastWord>,
     entrusted: results[5] as List<EntrustedOwner>,
     confirmers: results[6] as List<TransitionConfirmer>,
+    policy: results[7] as TransitionPolicy,
   );
 });
 
@@ -107,6 +116,31 @@ class _HomeBody extends ConsumerWidget {
   final HomeSnapshot data;
   final ValueChanged<int> onSelectTab;
 
+  /// Opens whatever the guide step asks for, then refreshes so the step ticks
+  /// itself off on the way back.
+  Future<void> _openGuide(
+    BuildContext context,
+    WidgetRef ref,
+    HomeGuideKind kind,
+  ) async {
+    switch (kind) {
+      case HomeGuideKind.data:
+        await context.push(Routes.accountNew);
+        ref.invalidate(dataOverviewProvider);
+      case HomeGuideKind.people:
+        onSelectTab(2);
+        return;
+      case HomeGuideKind.confirmer:
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const ConfirmersScreen()),
+        );
+      case HomeGuideKind.letter:
+        onSelectTab(3);
+        return;
+    }
+    ref.invalidate(homeSnapshotProvider);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final imagePath = data.profile.profileImagePath;
@@ -131,6 +165,16 @@ class _HomeBody extends ConsumerWidget {
     final confirmers = data.confirmers
         .where((item) => item.status == ConfirmerStatus.accepted)
         .length;
+    final progress = HomeGuide.of(
+      accounts: accounts.length,
+      people: data.stakeholders.length,
+      confirmers: confirmers,
+      letters: letters,
+    );
+    // Hidden by hand, or finished and no longer worth the space.
+    final hidden =
+        ref.watch(localSettingsProvider).value?.hideHomeGuide ?? false;
+    final guide = hidden || progress.finished ? null : progress;
     final todos = <_Todo>[
       if (unassigned.isNotEmpty)
         _Todo(
@@ -235,6 +279,39 @@ class _HomeBody extends ConsumerWidget {
             onOpenData: () => onSelectTab(1),
             onOpenLetters: () => onSelectTab(3),
             onOpenPeople: () => onSelectTab(2),
+          ),
+          if (guide != null) ...[
+            const SizedBox(height: 16),
+            HomeGuideCard(
+              guide: guide,
+              onOpen: (kind) => _openGuide(context, ref, kind),
+              onDismiss: () async {
+                try {
+                  final settings = await ref.read(localSettingsProvider.future);
+                  await ref
+                      .read(localSettingsProvider.notifier)
+                      .save(settings.copyWith(hideHomeGuide: true));
+                } catch (_) {
+                  // Hiding the guide is cosmetic; a storage failure here must
+                  // not take the home screen down with it.
+                }
+              },
+            ),
+          ],
+          const SizedBox(height: 28),
+          Text('사후 전달 조건', style: AppText.section),
+          const SizedBox(height: 8),
+          _PolicyRow(
+            policy: data.policy,
+            accepted: confirmers,
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ConfirmersScreen(),
+                ),
+              );
+              ref.invalidate(homeSnapshotProvider);
+            },
           ),
           if (data.entrusted.any((o) => o.hasAnything)) ...[
             const SizedBox(height: 32),
@@ -390,27 +467,10 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              for (var i = 0; i < 5; i++) ...[
-                if (i > 0) const SizedBox(width: 4),
-                Expanded(
-                  child: Container(
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: total == 0
-                          ? AppColors.barIdle
-                          : i <
-                                (assigned * 5 / (total == 0 ? 1 : total))
-                                    .floor()
-                          ? AppColors.sage
-                          : AppColors.barIdle,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ],
-            ],
+          ProgressBar(
+            value: total == 0 ? 0 : assigned / total,
+            track: AppColors.barIdle,
+            fill: AppColors.sage,
           ),
           const SizedBox(height: 14),
           Row(
@@ -528,6 +588,59 @@ class _SummaryStat extends StatelessWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// What the server actually requires before anything is handed over. It is set
+/// in 설정 and was invisible from home until now.
+class _PolicyRow extends StatelessWidget {
+  const _PolicyRow({
+    required this.policy,
+    required this.accepted,
+    required this.onTap,
+  });
+
+  final TransitionPolicy policy;
+  final int accepted;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final short = policy.minimumConfirmers - accepted;
+    return InkWell(
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(policy.summary, style: AppText.listTitle),
+                  const SizedBox(height: 3),
+                  Text(
+                    short > 0
+                        ? '확인자 $short명을 더 지정해야 조건이 채워져요'
+                        : '확인자 $accepted명이 수락해 조건을 채웠어요',
+                    style: AppText.helper.copyWith(
+                      height: 1,
+                      color: short > 0 ? AppColors.unread : AppColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const AppIcon(
+              'assets/icons/icon_chevron_right.svg',
+              size: 16,
+              color: AppColors.chevron,
             ),
           ],
         ),

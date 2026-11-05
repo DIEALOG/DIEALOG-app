@@ -181,11 +181,25 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
     }
   }
 
+  /// True once there is something a delete would actually throw away: either a
+  /// saved letter or an unsaved draft with text in it.
+  bool get _deletable =>
+      widget.letter != null ||
+      _title.text.trim().isNotEmpty ||
+      _message.text.trim().isNotEmpty;
+
   Future<void> _delete() async {
+    final saved = widget.letter != null;
     final approved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('남기는 말을 삭제할까요?'),
+        title: Text(saved ? '남기는 말을 삭제할까요?' : '작성 중인 글을 지울까요?'),
+        content: Text(
+          saved
+              ? '받는 사람에게 전달되지 않고 사라져요. 되돌릴 수 없어요.'
+              : '임시 저장된 내용이 사라져요. 되돌릴 수 없어요.',
+          style: AppText.body,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -193,7 +207,10 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('삭제'),
+            child: Text(
+              saved ? '삭제' : '지우기',
+              style: const TextStyle(color: AppColors.unread),
+            ),
           ),
         ],
       ),
@@ -206,14 +223,18 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
     });
     try {
       await _lastWrite.catchError((Object _) {});
-      await ref.read(lastWordRepositoryProvider).delete(widget.letter!.id);
+      if (saved) {
+        await ref.read(lastWordRepositoryProvider).delete(widget.letter!.id);
+      }
+      // Stops dispose from writing the draft back out again.
       _published = true;
       try {
         await ref
             .read(letterDraftStoreProvider)
             .delete(widget.overview.userId, _draftId);
       } catch (_) {
-        // The server delete already succeeded.
+        // A saved letter is already gone from the server; only the local
+        // scratch copy is at stake here.
       }
       ref.invalidate(letterOverviewProvider);
       ref.invalidate(homeSnapshotProvider);
@@ -252,6 +273,16 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
                       style: AppText.listCaption,
                     ),
                   ),
+                  if (_deletable)
+                    IconButton(
+                      tooltip: widget.letter == null ? '작성 중인 글 지우기' : '삭제',
+                      onPressed: _busy ? null : _delete,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 22,
+                        color: AppColors.muted,
+                      ),
+                    ),
                   TextButton(
                     onPressed: _busy ? null : _save,
                     child: Text('저장', style: AppText.section),
@@ -310,14 +341,6 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
                       contentPadding: EdgeInsets.symmetric(vertical: 16),
                     ),
                   ),
-                  if (widget.letter != null)
-                    TextButton(
-                      onPressed: _busy ? null : _delete,
-                      child: const Text(
-                        '남기는 말 삭제',
-                        style: TextStyle(color: AppColors.unread),
-                      ),
-                    ),
                   if (_error != null)
                     Text(
                       _error!,

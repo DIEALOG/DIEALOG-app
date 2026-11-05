@@ -14,6 +14,7 @@ class LocalSettings {
     this.notifyTransitionRequest = true,
     this.notifyEntrustedProgress = true,
     this.notifyLetterDraft = false,
+    this.hideHomeGuide = false,
   });
 
   factory LocalSettings.fromJson(Map<String, dynamic> json) => LocalSettings(
@@ -24,6 +25,7 @@ class LocalSettings {
     notifyEntrustedProgress:
         json['notify_entrusted_progress'] as bool? ?? true,
     notifyLetterDraft: json['notify_letter_draft'] as bool? ?? false,
+    hideHomeGuide: json['hide_home_guide'] as bool? ?? false,
   );
 
   final bool lockByFaceId;
@@ -32,12 +34,17 @@ class LocalSettings {
   final bool notifyEntrustedProgress;
   final bool notifyLetterDraft;
 
+  /// Set when the first-run guide on the home screen is dismissed by hand. The
+  /// guide also retires on its own once every step is done.
+  final bool hideHomeGuide;
+
   LocalSettings copyWith({
     bool? lockByFaceId,
     bool? certifyBeforeSensitive,
     bool? notifyTransitionRequest,
     bool? notifyEntrustedProgress,
     bool? notifyLetterDraft,
+    bool? hideHomeGuide,
   }) => LocalSettings(
     lockByFaceId: lockByFaceId ?? this.lockByFaceId,
     certifyBeforeSensitive:
@@ -47,6 +54,7 @@ class LocalSettings {
     notifyEntrustedProgress:
         notifyEntrustedProgress ?? this.notifyEntrustedProgress,
     notifyLetterDraft: notifyLetterDraft ?? this.notifyLetterDraft,
+    hideHomeGuide: hideHomeGuide ?? this.hideHomeGuide,
   );
 
   Map<String, dynamic> toJson() => {
@@ -55,6 +63,7 @@ class LocalSettings {
     'notify_transition_request': notifyTransitionRequest,
     'notify_entrusted_progress': notifyEntrustedProgress,
     'notify_letter_draft': notifyLetterDraft,
+    'hide_home_guide': hideHomeGuide,
   };
 }
 

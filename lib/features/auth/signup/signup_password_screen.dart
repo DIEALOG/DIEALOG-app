@@ -76,7 +76,7 @@ class _SignupPasswordScreenState extends ConsumerState<SignupPasswordScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           AppTextField(
             label: '비밀번호 확인',
             controller: _confirm,

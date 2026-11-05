@@ -31,6 +31,13 @@ class SignupScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Read before the Scaffold: `resizeToAvoidBottomInset` strips the keyboard
+    // inset from its own body, so inside it this always reads zero.
+    //
+    // Every step autofocuses its field, so the keyboard is already up when the
+    // screen appears. Shrinking the heading and dropping the subtitle then buys
+    // back the room the fields need instead of pushing them off the bottom.
+    final compact = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -38,26 +45,38 @@ class SignupScaffold extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AppBackButton(),
+              Row(
+                children: [
+                  const AppBackButton(),
+                  Expanded(child: _Progress(step: step)),
+                  const SizedBox(width: 12),
+                  Text('$step / 6', style: AppText.stepIndex),
+                ],
+              ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 12, top: 8),
+                  padding: const EdgeInsets.only(left: 12),
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text('$step / 6', style: AppText.stepIndex),
+                        SizedBox(height: compact ? 12 : 24),
+                        Text(
+                          title,
+                          style: compact
+                              ? AppText.stepTitle.copyWith(
+                                  fontSize: 21,
+                                  height: 30 / 21,
+                                )
+                              : AppText.stepTitle,
                         ),
-                        const SizedBox(height: 8),
-                        _Progress(step: step),
-                        const SizedBox(height: 21),
-                        Text(title, style: AppText.stepTitle),
-                        const SizedBox(height: 13),
-                        Text(subtitle, style: AppText.body),
-                        const SizedBox(height: 34),
+                        if (!compact) ...[
+                          const SizedBox(height: 13),
+                          Text(subtitle, style: AppText.body),
+                        ],
+                        SizedBox(height: compact ? 20 : 34),
                         child,
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -73,8 +92,16 @@ class SignupScaffold extends StatelessWidget {
                       enabled: buttonEnabled,
                       busy: busy,
                     ),
-                    const SizedBox(height: 8),
-                    Text(footnote, style: AppText.footnote, textAlign: TextAlign.center),
+                    // Steps raise their own errors inside `child`, so this line
+                    // is only a hint and can step aside for the keyboard.
+                    if (!compact) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        footnote,
+                        style: AppText.footnote,
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
                     const SizedBox(height: 8),
                   ],
                 ),
