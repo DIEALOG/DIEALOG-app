@@ -1,6 +1,6 @@
 {
-    "name": "diealog_app",
-    "short_name": "diealog_app",
+    "name": "DIEALOG",
+    "short_name": "DIEALOG",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
