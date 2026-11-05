@@ -25,6 +25,10 @@ void main() {
       expect(SignupRules.formatPhone('01074722414'), '010-7472-2414');
       expect(SignupRules.phoneOk('010-7472-2414'), isTrue);
       expect(SignupRules.phoneOk('010-123'), isFalse);
+      expect(SignupRules.phoneOk('012-7472-2414'), isFalse);
+      expect(SignupRules.formatPhone('+82 10-7472-2414'), '010-7472-2414');
+      expect(SignupRules.phoneOk('+82 10-7472-2414'), isTrue);
+      expect(SignupRules.phoneOk('010-7472-24145'), isFalse);
     });
   });
 

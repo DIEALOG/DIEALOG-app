@@ -9,10 +9,11 @@ import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/screen_header.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
-import '../settings/invitation_code_sheet.dart';
 import '../../data/providers.dart';
+import '../auth/signup/signup_rules.dart';
 import '../home/home_screen.dart';
 import '../legacy/legacy_providers.dart';
+import '../settings/invitation_code_sheet.dart';
 import 'people_providers.dart';
 
 class StakeholderEditScreen extends ConsumerStatefulWidget {
@@ -64,11 +65,20 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
   Future<void> _save() async {
     final name = _name.text.trim();
     final email = _email.text.trim();
-    final phone = _phone.text.trim();
-    if (name.isEmpty || (email.isEmpty && phone.isEmpty)) {
+    final enteredPhone = _phone.text.trim();
+    if (name.isEmpty || (email.isEmpty && enteredPhone.isEmpty)) {
       setState(() => _error = '이름과 이메일 또는 휴대폰 번호를 입력해 주세요.');
       return;
     }
+    if (enteredPhone.isNotEmpty &&
+        enteredPhone != widget.person?.phone &&
+        !SignupRules.phoneOk(enteredPhone)) {
+      setState(() => _error = '올바른 휴대폰 번호를 입력해 주세요.');
+      return;
+    }
+    // The server matches registered numbers as exact strings. Keep the form
+    // entered by the user, including separators, until it normalizes numbers.
+    final phone = enteredPhone.isEmpty ? null : enteredPhone;
     setState(() {
       _busy = true;
       _error = null;
@@ -78,7 +88,7 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
       name: name,
       relationship: _relationship.text.trim(),
       email: email.isEmpty ? null : email,
-      phone: phone.isEmpty ? null : phone,
+      phone: phone,
       message: _message.text.trim(),
       groupIds: _groupIds.toList(),
     );
@@ -195,8 +205,13 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
                   AppTextField(
                     label: '휴대폰 번호',
                     controller: _phone,
-                    hint: '01012345678',
+                    hint: '010-1234-5678',
                     keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '가입할 때 쓴 번호와 같은 형식으로 입력해 주세요.',
+                    style: AppText.listCaption,
                   ),
                   const SizedBox(height: 20),
                   AppTextField(

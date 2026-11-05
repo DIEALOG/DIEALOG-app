@@ -34,4 +34,31 @@ void main() {
       throwsA(isA<ApiException>()),
     );
   });
+
+  test('sends the same E.164 number for SMS and code verification', () async {
+    final numbers = <String>[];
+    final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
+      ..interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (options, handler) {
+            numbers.add(
+              (options.data as Map<String, dynamic>)['phoneNumber'] as String,
+            );
+            handler.next(options);
+          },
+        ),
+      )
+      ..interceptors.add(
+        MockApiInterceptor(
+          backend: MockBackend.seeded(),
+          latency: Duration.zero,
+        ),
+      );
+    final verification = PhoneVerificationRepository(dio);
+
+    await verification.sendCode('010-1234-5678');
+    await verification.verifyCode('01012345678', '123456');
+
+    expect(numbers, ['+821012345678', '+821012345678']);
+  });
 }

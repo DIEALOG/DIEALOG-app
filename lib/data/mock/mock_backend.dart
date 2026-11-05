@@ -567,8 +567,8 @@ class MockBackend {
 
     if (verb == 'POST' && match(['phone-verification', 'send'])) {
       final phone = data['phoneNumber'] as String? ?? '';
-      if (phone.isEmpty) {
-        throw const MockApiError(400, '전화번호를 입력해 주세요.');
+      if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
+        throw const MockApiError(400, 'invalid phone number');
       }
       _otp[phone] = 'sent';
       return const MockResult(200, {'message': '인증번호를 보냈어요.'});
@@ -576,6 +576,9 @@ class MockBackend {
     if (verb == 'POST' && match(['phone-verification', 'verify'])) {
       final phone = data['phoneNumber'] as String? ?? '';
       final code = data['code'] as String? ?? '';
+      if (!RegExp(r'^\+[1-9][0-9]{7,14}$').hasMatch(phone)) {
+        throw const MockApiError(400, 'invalid phone number');
+      }
       if (!_otp.containsKey(phone)) {
         throw const MockApiError(401, '인증번호를 먼저 받아 주세요.');
       }
