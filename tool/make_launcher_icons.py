@@ -2,7 +2,7 @@
 """Draw every launcher icon from assets/images/diealog_logo.png.
 
 The logo is black line art on transparency, so each icon is the same mark in
-white over black. Run from the repository root:
+black over white. Run from the repository root:
 
     python3 tool/make_launcher_icons.py
 """
@@ -14,8 +14,8 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "assets/images/diealog_logo.png"
-BACKGROUND = (0x00, 0x00, 0x00, 0xFF)
-MARK = (0xFF, 0xFF, 0xFF, 0xFF)
+BACKGROUND = (0xFF, 0xFF, 0xFF, 0xFF)
+MARK = (0x00, 0x00, 0x00, 0xFF)
 BACKGROUND_HEX = "#{:02X}{:02X}{:02X}".format(*BACKGROUND[:3])
 SUPERSAMPLE = 4
 # The logo draws a 25px line across a 965px mark. Shrunk to a 48px icon that
