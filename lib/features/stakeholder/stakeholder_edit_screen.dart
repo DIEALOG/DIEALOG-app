@@ -16,6 +16,8 @@ import '../legacy/legacy_providers.dart';
 import '../settings/invitation_code_sheet.dart';
 import 'people_providers.dart';
 
+enum _ContactMethod { phone, email }
+
 class StakeholderEditScreen extends ConsumerStatefulWidget {
   const StakeholderEditScreen({super.key, this.person, this.overview});
 
@@ -45,6 +47,7 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
   };
   var _busy = false;
   String? _error;
+  _ContactMethod _contactMethod = _ContactMethod.phone;
 
   @override
   void dispose() {
@@ -64,10 +67,20 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
 
   Future<void> _save() async {
     final name = _name.text.trim();
-    final email = _email.text.trim();
-    final enteredPhone = _phone.text.trim();
+    final email =
+        widget.person == null && _contactMethod == _ContactMethod.phone
+        ? ''
+        : _email.text.trim();
+    final enteredPhone =
+        widget.person == null && _contactMethod == _ContactMethod.email
+        ? ''
+        : _phone.text.trim();
     if (name.isEmpty || (email.isEmpty && enteredPhone.isEmpty)) {
       setState(() => _error = '이름과 이메일 또는 휴대폰 번호를 입력해 주세요.');
+      return;
+    }
+    if (email.isNotEmpty && !SignupRules.emailOk(email)) {
+      setState(() => _error = '올바른 이메일 주소를 입력해 주세요.');
       return;
     }
     if (enteredPhone.isNotEmpty &&
@@ -76,9 +89,13 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
       setState(() => _error = '올바른 휴대폰 번호를 입력해 주세요.');
       return;
     }
-    // The server matches registered numbers as exact strings. Keep the form
-    // entered by the user, including separators, until it normalizes numbers.
-    final phone = enteredPhone.isEmpty ? null : enteredPhone;
+    // Match the format produced by the app's signup flow. Preserve old
+    // records unchanged so editing their name does not break a raw number.
+    final phone = enteredPhone.isEmpty
+        ? null
+        : enteredPhone == widget.person?.phone
+        ? enteredPhone
+        : SignupRules.formatPhone(enteredPhone);
     setState(() {
       _busy = true;
       _error = null;
@@ -102,7 +119,7 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
       _refresh();
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) setState(() => _error = error.userMessage);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -195,24 +212,60 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
                     hint: '예: 가족, 친구',
                   ),
                   const SizedBox(height: 20),
-                  AppTextField(
-                    label: '이메일',
-                    controller: _email,
-                    hint: 'name@example.com',
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 20),
-                  AppTextField(
-                    label: '휴대폰 번호',
-                    controller: _phone,
-                    hint: '010-1234-5678',
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '가입할 때 쓴 번호와 같은 형식으로 입력해 주세요.',
-                    style: AppText.listCaption,
-                  ),
+                  if (widget.person == null) ...[
+                    Text('연락 방법', style: AppText.fieldLabel),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        _ContactChip(
+                          label: '휴대전화로 추가',
+                          selected: _contactMethod == _ContactMethod.phone,
+                          onSelected: () => setState(
+                            () => _contactMethod = _ContactMethod.phone,
+                          ),
+                        ),
+                        _ContactChip(
+                          label: '이메일로 추가',
+                          selected: _contactMethod == _ContactMethod.email,
+                          onSelected: () => setState(
+                            () => _contactMethod = _ContactMethod.email,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (widget.person != null ||
+                      _contactMethod == _ContactMethod.email) ...[
+                    AppTextField(
+                      label: '이메일',
+                      controller: _email,
+                      hint: 'name@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (widget.person != null ||
+                      _contactMethod == _ContactMethod.phone) ...[
+                    AppTextField(
+                      label: '휴대폰 번호',
+                      controller: _phone,
+                      hint: '010-1234-5678',
+                      keyboardType: TextInputType.phone,
+                      onChanged: (value) {
+                        final formatted = SignupRules.formatPhone(value);
+                        if (formatted != value) {
+                          _phone.value = TextEditingValue(
+                            text: formatted,
+                            selection: TextSelection.collapsed(
+                              offset: formatted.length,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   AppTextField(
                     label: '남길 메모',
@@ -225,6 +278,9 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
                     for (final group in widget.overview!.groups)
                       CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
+                        activeColor: AppColors.navy,
+                        checkColor: AppColors.white,
+                        side: const BorderSide(color: AppColors.muted),
                         title: Text(
                           group.name,
                           style: AppText.body.copyWith(color: AppColors.ink),
@@ -267,19 +323,23 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
                       ),
                     ),
                   ],
-                  if (_error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: AppColors.unread),
-                    ),
-                  ],
                 ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: PrimaryButton(label: '저장', busy: _busy, onPressed: _save),
+              child: Column(
+                children: [
+                  if (_error != null) ...[
+                    Text(
+                      _error!,
+                      style: AppText.helper.copyWith(color: AppColors.unread),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  PrimaryButton(label: '저장', busy: _busy, onPressed: _save),
+                ],
+              ),
             ),
           ],
         ),
@@ -295,4 +355,39 @@ class _StakeholderEditScreenState extends ConsumerState<StakeholderEditScreen> {
     ConfirmerStatus.revoked => '해제됨',
     ConfirmerStatus.unknown => '상태 확인 필요',
   };
+}
+
+class _ContactChip extends StatelessWidget {
+  const _ContactChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = selected ? AppColors.white : AppColors.ink;
+    return ChoiceChip(
+      showCheckmark: false,
+      selected: selected,
+      selectedColor: AppColors.navy,
+      backgroundColor: AppColors.white,
+      side: BorderSide(color: selected ? AppColors.navy : AppColors.divider),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (selected) ...[
+            const Icon(Icons.check, size: 16, color: AppColors.white),
+            const SizedBox(width: 6),
+          ],
+          Text(label, style: TextStyle(color: foreground)),
+        ],
+      ),
+      onSelected: (_) => onSelected(),
+    );
+  }
 }

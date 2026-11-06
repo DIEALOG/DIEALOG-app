@@ -14,15 +14,17 @@ class Profile {
   });
 
   factory Profile.fromJson(Json json) => Profile(
-        id: json['id'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        name: json['name'] as String? ?? '',
-        phoneNumber: json['phone_number'] as String?,
-        profileImagePath: json['profile_image_path'] as String?,
-        stakeholders: parseList(json['stakeholders'], Stakeholder.fromJson),
-        stakeholderGroups:
-            parseList(json['stakeholder_groups'], StakeholderGroup.fromJson),
-      );
+    id: json['id'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    name: json['name'] as String? ?? '',
+    phoneNumber: json['phone_number'] as String?,
+    profileImagePath: json['profile_image_path'] as String?,
+    stakeholders: parseList(json['stakeholders'], Stakeholder.fromJson),
+    stakeholderGroups: parseList(
+      json['stakeholder_groups'],
+      StakeholderGroup.fromJson,
+    ),
+  );
 
   final String id;
   final String email;
@@ -38,22 +40,26 @@ class Profile {
 /// `domain.UserConfig`
 class UserConfig {
   const UserConfig({
+    required this.userId,
     this.lockByFaceId = false,
     this.certificationBeforeSensitiveInformation = false,
   });
 
   factory UserConfig.fromJson(Json json) => UserConfig(
-        lockByFaceId: json['lock_by_face_id'] as bool? ?? false,
-        certificationBeforeSensitiveInformation:
-            json['certification_before_sensitive_information'] as bool? ?? false,
-      );
+    userId: json['user_id'] as String? ?? '',
+    lockByFaceId: json['lock_by_face_id'] as bool? ?? false,
+    certificationBeforeSensitiveInformation:
+        json['certification_before_sensitive_information'] as bool? ?? false,
+  );
 
+  final String userId;
   final bool lockByFaceId;
   final bool certificationBeforeSensitiveInformation;
 
   Json toJson() => {
-        'lock_by_face_id': lockByFaceId,
-        'certification_before_sensitive_information':
-            certificationBeforeSensitiveInformation,
-      };
+    'user_id': userId,
+    'lock_by_face_id': lockByFaceId,
+    'certification_before_sensitive_information':
+        certificationBeforeSensitiveInformation,
+  };
 }

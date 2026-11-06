@@ -26,7 +26,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _changeImage() async {
     if (_uploading) return;
     if (Env.useMockApi) {
-      setState(() => _error = '사진 변경은 실제 서버 연결 시 사용할 수 있어요.');
+      setState(() => _error = '사진을 변경할 수 없어요.');
       return;
     }
     try {
@@ -44,7 +44,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ref.invalidate(settingsProfileProvider);
       ref.invalidate(homeSnapshotProvider);
     } on ApiException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) {
+        setState(
+          () => _error = error.statusCode == 500
+              ? '사진을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.'
+              : error.userMessage,
+        );
+      }
     } catch (_) {
       if (mounted) setState(() => _error = '사진을 변경하지 못했어요.');
     } finally {

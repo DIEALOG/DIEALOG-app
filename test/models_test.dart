@@ -2,6 +2,7 @@ import 'package:diealog_app/core/network/api_exception.dart';
 import 'package:diealog_app/data/models/account.dart';
 import 'package:diealog_app/data/models/json.dart';
 import 'package:diealog_app/data/models/legacy.dart';
+import 'package:diealog_app/data/models/profile.dart';
 import 'package:diealog_app/data/models/stakeholder.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -95,5 +96,25 @@ void main() {
     );
     expect(client.message, 'invalid credentials');
     expect(client.isUnauthorized, isTrue);
+  });
+
+  test('security settings send the authenticated profile ID', () {
+    const config = UserConfig(
+      userId: 'signed-in-user',
+      lockByFaceId: true,
+      certificationBeforeSensitiveInformation: false,
+    );
+    expect(config.toJson(), {
+      'user_id': 'signed-in-user',
+      'lock_by_face_id': true,
+      'certification_before_sensitive_information': false,
+    });
+  });
+
+  test('signup duplicate-phone errors are readable', () {
+    expect(
+      const ApiException('phone number already exists').userMessage,
+      '이미 가입된 휴대폰 번호예요.',
+    );
   });
 }

@@ -9,9 +9,8 @@ const _footnote = '입력한 내용은 이전 단계에서 수정할 수 있어�
 Widget _harness(double keyboard) => MaterialApp(
   home: Builder(
     builder: (context) => MediaQuery(
-      data: MediaQuery.of(
-        context,
-      ).copyWith(viewInsets: EdgeInsets.only(bottom: keyboard)),
+      data: MediaQuery.of(context)
+          .copyWith(viewInsets: EdgeInsets.only(bottom: keyboard)),
       child: SignupScaffold(
         step: 3,
         title: _title,
@@ -20,9 +19,7 @@ Widget _harness(double keyboard) => MaterialApp(
         buttonEnabled: true,
         onNext: () {},
         child: Column(
-          children: [
-            for (var i = 0; i < 4; i++) const SizedBox(height: 100),
-          ],
+          children: [for (var i = 0; i < 4; i++) const SizedBox(height: 100)],
         ),
       ),
     ),
@@ -61,5 +58,33 @@ void main() {
       lessThan(view - 320),
       reason: 'the action must sit above the keyboard, not under it',
     );
+  });
+
+  testWidgets('a signup error stays visible above an open keyboard', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(viewInsets: const EdgeInsets.only(bottom: 320)),
+            child: const SignupScaffold(
+              step: 6,
+              title: '약관 확인',
+              subtitle: '안내',
+              buttonLabel: '가입하기',
+              onNext: null,
+              footnote: '이미 가입된 휴대폰 번호예요.',
+              footnoteIsError: true,
+              child: SizedBox.shrink(),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('이미 가입된 휴대폰 번호예요.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

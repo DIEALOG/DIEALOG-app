@@ -121,7 +121,7 @@ class AudiencePicker extends StatelessWidget {
         if (people.isNotEmpty) ...[
           const SizedBox(height: 24),
           Text(
-            '개인 선택',
+            '관계자 선택',
             style: AppText.formLabel.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 8),
@@ -176,6 +176,7 @@ class _ChoiceRow extends StatelessWidget {
             onChanged: onTap == null ? null : (_) => onTap!(),
             visualDensity: VisualDensity.compact,
             activeColor: AppColors.navy,
+            checkColor: AppColors.white,
           ),
           const SizedBox(width: 4),
           Expanded(

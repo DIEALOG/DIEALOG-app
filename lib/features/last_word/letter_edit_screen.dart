@@ -7,6 +7,7 @@ import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../data/models/last_word.dart';
+import '../../data/models/stakeholder.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
 import '../shared/audience_picker.dart';
@@ -33,6 +34,8 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
     people: {...?widget.letter?.receiverIds},
     groups: {...?widget.letter?.receiverGroupIds},
   );
+  late List<Stakeholder> _availablePeople = widget.overview.people;
+  late List<StakeholderGroup> _availableGroups = widget.overview.groups;
   Future<void> _lastWrite = Future<void>.value();
   Timer? _timer;
   DateTime? _savedAt;
@@ -114,12 +117,36 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
     super.dispose();
   }
 
+  String _recipientLabel(Set<String> ids) {
+    final firstId = ids.first;
+    final name = _availablePeople
+        .where((person) => person.id == firstId)
+        .map((person) => person.name)
+        .firstOrNull ?? '관계자';
+    return ids.length == 1 ? name : '$name 외 ${ids.length - 1}명';
+  }
+
   Future<void> _pickAudience() async {
+    try {
+      final repository = ref.read(stakeholderRepositoryProvider);
+      final people = await repository.list();
+      final groups = await repository.listGroups();
+      if (!mounted) return;
+      setState(() {
+        _availablePeople = people;
+        _availableGroups = groups;
+      });
+    } on ApiException catch (error) {
+      if (mounted) setState(() => _error = error.userMessage);
+      return;
+    }
+    if (!mounted) return;
     final selected = await Navigator.of(context).push<AudienceSelection>(
       MaterialPageRoute(
         builder: (_) => AudienceSelectScreen(
-          people: widget.overview.people,
-          groups: widget.overview.groups,
+          title: '관계자에게 남기기',
+          people: _availablePeople,
+          groups: _availableGroups,
           initial: _selection,
         ),
       ),
@@ -138,7 +165,7 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
       setState(() => _error = '제목과 내용을 입력해 주세요.');
       return;
     }
-    if (_selection.resolvedIds(widget.overview.groups).isEmpty) {
+    if (_selection.resolvedIds(_availableGroups).isEmpty) {
       setState(() => _error = '받는 사람을 선택해 주세요.');
       return;
     }
@@ -253,7 +280,7 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
     if (!_ready) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    final recipients = _selection.resolvedIds(widget.overview.groups);
+    final recipients = _selection.resolvedIds(_availableGroups);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -304,7 +331,7 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
                             child: Text(
                               recipients.isEmpty
                                   ? '받는 사람을 선택해 주세요'
-                                  : 'To. ${widget.overview.recipientLabel(LastWord(title: '', message: '', receiverIds: _selection.people.toList(), receiverGroupIds: _selection.groups.toList()))}',
+                                  : 'To. ${_recipientLabel(recipients)}',
                               style: AppText.listTitle,
                             ),
                           ),

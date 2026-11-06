@@ -49,14 +49,20 @@ class _AppLockHostState extends ConsumerState<AppLockHost>
   }
 
   Future<void> _maybeLock() async {
+    if (_locked || _busy) return;
     if (ref.read(authControllerProvider) != AuthStatus.signedIn) return;
     final settings = ref.read(localSettingsProvider).value;
     if (settings == null || !settings.lockByFaceId) return;
     if (!await ref.read(biometricAuthProvider).canAuthenticate()) return;
-    if (mounted) setState(() => _locked = true);
+    if (!mounted || _locked || _busy) return;
+    setState(() => _locked = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _locked && !_busy) _unlock();
+    });
   }
 
   Future<void> _unlock() async {
+    if (_busy || !_locked) return;
     setState(() => _busy = true);
     final ok = await ref
         .read(biometricAuthProvider)
@@ -109,10 +115,7 @@ class _LockGate extends StatelessWidget {
           children: [
             Text('앱이 잠겨 있어요', style: AppText.screenTitle),
             const SizedBox(height: 12),
-            Text(
-              'Face ID 또는 기기 암호로 잠금을 해제해 주세요.',
-              style: AppText.body,
-            ),
+            Text('Face ID 또는 기기 암호로 잠금을 해제해 주세요.', style: AppText.body),
             const Spacer(),
             PrimaryButton(
               label: '잠금 해제',

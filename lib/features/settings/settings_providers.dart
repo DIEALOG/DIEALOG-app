@@ -86,11 +86,7 @@ final confirmerBoardProvider = FutureProvider.autoDispose<ConfirmerBoard>((
   final confirmers = await transition.listConfirmers();
   final policy = await transition.fetchPolicy();
   final people = await ref.watch(stakeholderRepositoryProvider).list();
-  return ConfirmerBoard(
-    confirmers: confirmers,
-    people: people,
-    policy: policy,
-  );
+  return ConfirmerBoard(confirmers: confirmers, people: people, policy: policy);
 });
 
 final localSettingsProvider =
@@ -100,27 +96,26 @@ final localSettingsProvider =
 
 class LocalSettingsController extends AsyncNotifier<LocalSettings> {
   @override
-  Future<LocalSettings> build() =>
-      ref.watch(localSettingsStoreProvider).read();
+  Future<LocalSettings> build() => ref.watch(localSettingsStoreProvider).read();
 
-  /// Saves on the device first so the switch stays put, then mirrors the
-  /// security pair to the server. A failed sync surfaces as an error without
-  /// reverting the local value.
+  /// Device-only preferences can be saved immediately.
   Future<void> save(LocalSettings next) async {
     state = AsyncData(next);
     await ref.read(localSettingsStoreProvider).write(next);
   }
 
   Future<void> saveSecurity(LocalSettings next) async {
-    await save(next);
+    final profile = await ref.read(profileRepositoryProvider).fetch();
     await ref
         .read(profileRepositoryProvider)
         .updateConfig(
           UserConfig(
+            userId: profile.id,
             lockByFaceId: next.lockByFaceId,
             certificationBeforeSensitiveInformation:
                 next.certifyBeforeSensitive,
           ),
         );
+    await save(next);
   }
 }

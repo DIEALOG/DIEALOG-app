@@ -19,8 +19,9 @@ class SignupPasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _SignupPasswordScreenState extends ConsumerState<SignupPasswordScreen> {
-  late final _password =
-      TextEditingController(text: ref.read(signupDraftProvider).password);
+  late final _password = TextEditingController(
+    text: ref.read(signupDraftProvider).password,
+  );
   final _confirm = TextEditingController();
 
   @override
@@ -57,23 +58,13 @@ class _SignupPasswordScreenState extends ConsumerState<SignupPasswordScreen> {
             autofillHints: const [AutofillHints.newPassword],
             textInputAction: TextInputAction.next,
             onChanged: (_) => setState(() {}),
-            helper: Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: '✓  8자 이상',
-                    style: AppText.helper.copyWith(
-                      color: longEnough ? AppColors.navy : AppColors.caption,
-                    ),
-                  ),
-                  TextSpan(
-                    text: '     ✓  영문·숫자 포함',
-                    style: AppText.helper.copyWith(
-                      color: mixed ? AppColors.navy : AppColors.caption,
-                    ),
-                  ),
-                ],
-              ),
+            helper: Wrap(
+              spacing: 18,
+              runSpacing: 4,
+              children: [
+                _PasswordRule(label: '8자 이상', satisfied: longEnough),
+                _PasswordRule(label: '영문·숫자 포함', satisfied: mixed),
+              ],
             ),
           ),
           const SizedBox(height: 18),
@@ -84,15 +75,40 @@ class _SignupPasswordScreenState extends ConsumerState<SignupPasswordScreen> {
             autofillHints: const [AutofillHints.newPassword],
             textInputAction: TextInputAction.done,
             onChanged: (_) => setState(() {}),
-            helper: Text(
-              '✓  비밀번호가 일치해요',
-              style: AppText.helper.copyWith(
-                color: match ? AppColors.navy : AppColors.caption,
-              ),
-            ),
+            helper: _PasswordRule(label: '비밀번호 일치', satisfied: match),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _PasswordRule extends StatelessWidget {
+  const _PasswordRule({required this.label, required this.satisfied});
+
+  final String label;
+  final bool satisfied;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = satisfied ? AppColors.progress : AppColors.caption;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          satisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 18,
+          color: color,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: AppText.helper.copyWith(
+            color: satisfied ? AppColors.ink : AppColors.caption,
+            fontWeight: satisfied ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      ],
     );
   }
 }

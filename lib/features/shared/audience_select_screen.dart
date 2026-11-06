@@ -13,6 +13,7 @@ class AudienceSelectScreen extends StatefulWidget {
     required this.initial,
     this.allowEmpty = false,
     this.buttonLabel = '다음',
+    this.title = '받는 사람 선택',
   });
 
   final List<Stakeholder> people;
@@ -20,6 +21,7 @@ class AudienceSelectScreen extends StatefulWidget {
   final AudienceSelection initial;
   final bool allowEmpty;
   final String buttonLabel;
+  final String title;
 
   @override
   State<AudienceSelectScreen> createState() => _AudienceSelectScreenState();
@@ -45,7 +47,7 @@ class _AudienceSelectScreenState extends State<AudienceSelectScreen> {
                   ),
                   Expanded(
                     child: Text(
-                      '받는 사람 선택',
+                      widget.title,
                       style: AppText.section,
                       textAlign: TextAlign.center,
                     ),

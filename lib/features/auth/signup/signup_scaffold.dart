@@ -15,6 +15,7 @@ class SignupScaffold extends StatelessWidget {
     required this.onNext,
     required this.child,
     this.footnote = '입력한 내용은 이전 단계에서 수정할 수 있어요.',
+    this.footnoteIsError = false,
     this.buttonEnabled = false,
     this.busy = false,
   });
@@ -26,6 +27,7 @@ class SignupScaffold extends StatelessWidget {
   final VoidCallback? onNext;
   final Widget child;
   final String footnote;
+  final bool footnoteIsError;
   final bool buttonEnabled;
   final bool busy;
 
@@ -92,13 +94,13 @@ class SignupScaffold extends StatelessWidget {
                       enabled: buttonEnabled,
                       busy: busy,
                     ),
-                    // Steps raise their own errors inside `child`, so this line
-                    // is only a hint and can step aside for the keyboard.
-                    if (!compact) ...[
+                    if (!compact || footnoteIsError) ...[
                       const SizedBox(height: 8),
                       Text(
                         footnote,
-                        style: AppText.footnote,
+                        style: footnoteIsError
+                            ? AppText.helper.copyWith(color: AppColors.unread)
+                            : AppText.footnote,
                         textAlign: TextAlign.center,
                       ),
                     ],

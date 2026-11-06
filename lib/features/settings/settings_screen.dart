@@ -74,7 +74,7 @@ class _Body extends ConsumerWidget {
         await controller.saveSecurity(next);
       } on ApiException catch (e) {
         messenger.showSnackBar(
-          SnackBar(content: Text('서버에 반영하지 못했어요. ${e.message}')),
+          SnackBar(content: Text('설정을 저장하지 못했어요. ${e.userMessage}')),
         );
       }
     }
@@ -157,7 +157,7 @@ class _Body extends ConsumerWidget {
                 controller.save(local.copyWith(notifyLetterDraft: v)),
           ),
           const SizedBox(height: 8),
-          Text('알림 발송은 아직 준비 중이라, 선택은 이 기기에만 저장돼요.', style: AppText.helper),
+          Text('알림 설정은 이 기기에 적용돼요.', style: AppText.helper),
           const _SectionLabel('사후 기록'),
           _ValueRow(
             label: '맡은 기록과 받은 말',

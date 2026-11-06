@@ -26,6 +26,7 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
   String? _error;
 
   bool get _all => _service && _privacy && _marketing;
+  bool get _requiredAgreed => _service && _privacy;
 
   void _setAll(bool value) {
     setState(() {
@@ -42,7 +43,9 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
       _error = null;
     });
     try {
-      await ref.read(authControllerProvider.notifier).signup(
+      await ref
+          .read(authControllerProvider.notifier)
+          .signup(
             name: draft.name,
             email: draft.email,
             password: draft.password,
@@ -51,7 +54,7 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
       if (!mounted) return;
       context.go(Routes.signupComplete);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.userMessage);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -64,9 +67,10 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
       title: '시작하기 전에\n약관을 확인해 주세요',
       subtitle: '기록을 안전하게 맡기기 위한 약속이에요.',
       buttonLabel: '동의하고 가입하기',
-      buttonEnabled: _all,
+      buttonEnabled: _requiredAgreed,
       busy: _busy,
       footnote: _error ?? '필수 약관에 동의하면 가입할 수 있어요.',
+      footnoteIsError: _error != null,
       onNext: _submit,
       child: Column(
         children: [
@@ -83,7 +87,7 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
             onTap: () => setState(() => _privacy = !_privacy),
           ),
           _TermRow(
-            label: '마케팅 수신 동의 (이메일, SMS, 우편 등) (필수)',
+            label: '마케팅 수신 동의 (선택)',
             checked: _marketing,
             onTap: () => setState(() => _marketing = !_marketing),
           ),
@@ -156,7 +160,12 @@ class _TermRow extends StatelessWidget {
           children: [
             _Check(checked: checked, size: 18),
             const SizedBox(width: 12),
-            Expanded(child: Text(label, style: AppText.body.copyWith(color: AppColors.ink))),
+            Expanded(
+              child: Text(
+                label,
+                style: AppText.body.copyWith(color: AppColors.ink),
+              ),
+            ),
             const AppIcon(
               'assets/icons/icon_chevron_right.svg',
               size: 16,

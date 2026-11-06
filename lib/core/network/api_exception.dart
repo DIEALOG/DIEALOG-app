@@ -38,6 +38,21 @@ class ApiException implements Exception {
   /// Server English leftovers that settings/inbox used to dump as-is.
   String get userMessage {
     final lower = message.toLowerCase();
+    if (lower.contains('email or phone number already exists')) {
+      return '이메일 또는 휴대폰 번호가 이미 가입되어 있어요.';
+    }
+    if (lower.contains('phone number already exists')) {
+      return '이미 가입된 휴대폰 번호예요.';
+    }
+    if (lower.contains('email already exists')) {
+      return '이미 가입된 이메일이에요.';
+    }
+    if (lower.contains('invalid phone number')) {
+      return '올바른 휴대폰 번호를 입력해 주세요.';
+    }
+    if (lower.contains('user id not match')) {
+      return '계정 정보를 확인하지 못했어요. 다시 로그인해 주세요.';
+    }
     if (lower.contains('transition policy not found')) {
       return '전환 정책이 아직 없어요. 잠시 후 다시 시도해 주세요.';
     }
