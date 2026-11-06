@@ -313,7 +313,7 @@ class _OwnerCaseScreenState extends ConsumerState<OwnerCaseScreen> {
                         if (item.awaitingAutoConfirm) ...[
                           const SizedBox(height: 14),
                           Text(
-                            '대기 기간이 끝났어요. 서버가 5분마다 확인하므로 곧 전환이 확정됩니다. '
+                            '대기 기간이 끝났어요. 곧 전환이 확정됩니다. '
                             '그 전이라면 아직 취소할 수 있어요.',
                             style: AppText.helper,
                           ),

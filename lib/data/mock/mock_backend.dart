@@ -153,6 +153,15 @@ class MockBackend {
       final item = _requireCase(at(3), confirmer['user_id'] as String);
       if (verb == 'GET') return MockResult(200, item);
     }
+    if (verb == 'GET' &&
+        match(['transition', 'confirmer', 'cases', '*', 'confirmations'])) {
+      final confirmer = _requireConfirmerToken(headers);
+      final item = _requireCase(at(3), confirmer['user_id'] as String);
+      return MockResult(200, [
+        for (final entry in _confirmations)
+          if (entry['transition_case_id'] == item['id']) entry,
+      ]);
+    }
     if (verb == 'POST' &&
         match(['transition', 'confirmer', 'cases', '*', 'confirmations'])) {
       final confirmer = _requireConfirmerToken(headers);

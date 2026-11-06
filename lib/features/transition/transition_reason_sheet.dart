@@ -54,7 +54,7 @@ class _ReasonFormState extends State<_ReasonForm> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('사후 전환 확인 요청', style: AppText.screenTitle),
+          Text('${widget.ownerName}님의 사후 전환 확인 요청', style: AppText.screenTitle),
           const SizedBox(height: 12),
           Text(
             '요청하면 다른 확인자들에게 사실 확인을 묻습니다. '
@@ -82,8 +82,7 @@ class _ReasonFormState extends State<_ReasonForm> {
           PrimaryButton(
             label: '요청하기',
             height: 48,
-            onPressed: () =>
-                Navigator.of(context).pop(_reason.text.trim()),
+            onPressed: () => Navigator.of(context).pop(_reason.text.trim()),
           ),
           const SizedBox(height: 4),
           Center(
@@ -91,11 +90,6 @@ class _ReasonFormState extends State<_ReasonForm> {
               onPressed: () => Navigator.of(context).pop(),
               child: Text('취소', style: AppText.textButton),
             ),
-          ),
-          Text(
-            '요청만으로 사후 공개가 확정되지는 않아요. '
-            '확인자 동의와 대기 기간을 모두 거쳐야 합니다.',
-            style: AppText.footnote,
           ),
         ],
       ),

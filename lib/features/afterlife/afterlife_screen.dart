@@ -48,7 +48,7 @@ class AfterlifeScreen extends ConsumerWidget {
                 data: (items) {
                   final visible = [
                     for (final item in items)
-                      if (item.hasAnything || item.error != null) item,
+                      if (item.confirmed) item,
                   ];
                   return RefreshIndicator(
                     onRefresh: () async =>

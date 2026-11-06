@@ -165,7 +165,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
 
   Widget? _destination(AppNotification item) {
     if (item.invitationToken != null) {
-      return InvitationScreen(initialToken: item.invitationToken);
+      return InvitationScreen(
+        initialToken: item.invitationToken,
+        notificationId: item.id,
+        confirmerId: item.metadata['confirmer_id'] as String?,
+      );
     }
     return switch (item.eventType) {
       'transition_confirmed' =>
@@ -174,7 +178,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                 ownerId: item.metadata['target_user_id'] as String,
               )
             : const AfterlifeScreen(),
-      'confirmer_invitation' => const InvitationScreen(),
+      'confirmer_invitation' => InvitationScreen(
+        notificationId: item.id,
+        confirmerId: item.metadata['confirmer_id'] as String?,
+      ),
       'confirmer_invitation_accepted' ||
       'confirmer_invitation_declined' => const ConfirmersScreen(),
       _ => switch (item.kind) {

@@ -177,10 +177,7 @@ class _AccountTasksScreenState extends ConsumerState<AccountTasksScreen> {
                           ),
                         ),
                       const SizedBox(height: 18),
-                      Text(
-                        '코드는 자동 발송되지 않습니다. 담당자에게 직접 전달해 주세요.',
-                        style: AppText.helper,
-                      ),
+                      Text('처리 코드는 결과를 보고할 때 사용해요.', style: AppText.helper),
                     ],
                   ),
                 );
@@ -214,8 +211,7 @@ Future<void> _showCodes(
             Text('처리 요청 코드', style: AppText.screenTitle),
             const SizedBox(height: 8),
             Text(
-              '각 담당자에게 해당 코드만 직접 전달해 주세요. '
-              '이 창을 닫으면 다시 볼 수 없습니다.',
+              '담당자별 코드를 확인해 주세요. 이 창을 닫으면 다시 볼 수 없습니다.',
               style: AppText.body,
             ),
             const SizedBox(height: 14),
@@ -247,9 +243,7 @@ Future<void> _showCodes(
                               );
                               if (sheetContext.mounted) {
                                 ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('코드를 복사했어요. 직접 전달해 주세요.'),
-                                  ),
+                                  const SnackBar(content: Text('코드를 복사했어요.')),
                                 );
                               }
                             },

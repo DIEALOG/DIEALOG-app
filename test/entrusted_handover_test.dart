@@ -138,11 +138,13 @@ void main() {
       );
 
       final waiting = (await repository.listOwners()).single;
+      expect(waiting.confirmed, isFalse);
       expect(waiting.letters, isEmpty);
       expect(letters.readCount, 0);
 
       confirmer.status = TransitionCaseStatus.confirmed;
       final opened = (await repository.listOwners()).single;
+      expect(opened.confirmed, isTrue);
       expect(opened.letters.single.title, '남긴 말');
       expect(letters.readCount, 1);
     },

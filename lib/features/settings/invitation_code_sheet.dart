@@ -28,8 +28,8 @@ Future<void> showInvitationCodeSheet(
           Text('확인자 초대 코드', style: AppText.screenTitle),
           const SizedBox(height: 12),
           Text(
-            '${invitation.confirmer.name} 님에게 아래 코드를 전달해 주세요. '
-            '현재 서버는 이메일이나 문자를 자동 발송하지 않습니다.',
+            '${invitation.confirmer.name} 님의 초대 코드예요. '
+            '상대방이 앱 알림을 받지 못했다면 코드를 공유해 주세요.',
             style: AppText.paragraph,
           ),
           const SizedBox(height: 20),
@@ -59,9 +59,9 @@ Future<void> showInvitationCodeSheet(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: invitation.token));
               if (sheetContext.mounted) {
-                ScaffoldMessenger.of(sheetContext).showSnackBar(
-                  const SnackBar(content: Text('초대 코드를 복사했어요. 직접 전달해 주세요.')),
-                );
+                ScaffoldMessenger.of(
+                  sheetContext,
+                ).showSnackBar(const SnackBar(content: Text('초대 코드를 복사했어요.')));
               }
             },
           ),

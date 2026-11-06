@@ -20,6 +20,7 @@ class EntrustedOwner {
     required this.tasks,
     required this.letters,
     this.activeCase,
+    this.confirmed = false,
     this.error,
   });
 
@@ -35,14 +36,17 @@ class EntrustedOwner {
   /// Set while a transition request is still being confirmed or waiting.
   final TransitionCase? activeCase;
 
+  /// True once this owner's transition is confirmed. In-progress requests stay
+  /// out of 맡은 기록.
+  final bool confirmed;
+
   /// Why this owner's section could not be loaded, if it failed.
   final String? error;
 
   int get doneCount =>
       tasks.where((t) => t.status == AccountHandlingStatus.completed).length;
 
-  bool get hasAnything =>
-      tasks.isNotEmpty || letters.isNotEmpty || activeCase != null;
+  bool get hasAnything => confirmed;
 }
 
 /// Everything the 사후 · 맡은 기록 side needs for the signed-in user.
@@ -162,12 +166,18 @@ class EntrustedRepository {
         for (final link in remembered) link.caseId,
       };
       TransitionCase? active;
+      // A saved link only exists for a transition_confirmed notification.
+      var confirmed = remembered.isNotEmpty;
 
       if (session != null) {
         try {
           for (final item in await confirmers.listCases(session.authToken)) {
             caseIds.add(item.id);
-            if (item.status != TransitionCaseStatus.confirmed) active ??= item;
+            if (item.status == TransitionCaseStatus.confirmed) {
+              confirmed = true;
+            } else if (item.status != TransitionCaseStatus.cancelled) {
+              active ??= item;
+            }
           }
         } on ApiException {
           // A renewed login may outlive the old confirmer token. Saved case ids
@@ -179,20 +189,20 @@ class EntrustedRepository {
       }
 
       final tasks = <AccountHandlingTask>[];
-      var opened = remembered.isNotEmpty;
       for (final caseId in caseIds) {
         if (session != null) {
           try {
             final detail = await confirmers.getCase(session.authToken, caseId);
-            opened |= detail.status == TransitionCaseStatus.confirmed;
-            if (detail.status != TransitionCaseStatus.confirmed &&
-                detail.status != TransitionCaseStatus.cancelled) {
+            if (detail.status == TransitionCaseStatus.confirmed) {
+              confirmed = true;
+            } else if (detail.status != TransitionCaseStatus.cancelled) {
               active = detail;
             }
           } on ApiException {
             // A stale confirmer token does not revoke stakeholder access.
           }
         }
+        if (!confirmed) continue;
         try {
           tasks.addAll(await transitions.listTasks(caseId));
         } on ApiException {
@@ -202,7 +212,7 @@ class EntrustedRepository {
       tasks.sort((a, b) => a.id.compareTo(b.id));
       // The recipient endpoint currently does not check transition state.
       // Do not reveal an owner's private letter before the server confirms it.
-      final letters = opened || tasks.isNotEmpty
+      final letters = confirmed
           ? await lastWords.listAddressedToMe(owner.id)
           : <LastWord>[];
 
@@ -210,7 +220,8 @@ class EntrustedRepository {
         owner: owner,
         tasks: tasks,
         letters: letters,
-        activeCase: active,
+        activeCase: confirmed ? null : active,
+        confirmed: confirmed,
       );
     } on ApiException catch (e) {
       return EntrustedOwner(

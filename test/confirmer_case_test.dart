@@ -53,6 +53,18 @@ void main() {
         created.id,
         TransitionDecision.agree,
       );
+      final responses = await confirmer.listConfirmations(
+        firstAccess.authToken,
+        created.id,
+      );
+      expect(
+        responses
+            .singleWhere(
+              (response) => response.confirmerId == firstAccess.confirmer.id,
+            )
+            .decision,
+        TransitionDecision.agree,
+      );
       expect(
         (await confirmer.getCase(firstAccess.authToken, created.id)).status,
         TransitionCaseStatus.pendingConfirmation,

@@ -34,17 +34,34 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final location = state.matchedLocation;
       return switch (status.value) {
-        AuthStatus.unknown => location == Routes.splash ? null : Routes.splash,
+        AuthStatus.unknown =>
+          location == Routes.splash
+              ? null
+              : (location == Routes.invitation
+                    ? '${Routes.splash}?next=${Uri.encodeComponent(state.uri.toString())}'
+                    : Routes.splash),
         AuthStatus.signedOut =>
-          AuthPaths.isPublic(location) ? null : Routes.welcome,
+          location == Routes.invitation
+              ? '${Routes.login}?next=${Uri.encodeComponent(state.uri.toString())}'
+              : (location == Routes.splash &&
+                    _invitationLocation(state.uri.queryParameters['next']) !=
+                        null)
+              ? '${Routes.login}?next=${Uri.encodeComponent(_invitationLocation(state.uri.queryParameters['next'])!)}'
+              : (AuthPaths.isPublic(location) ? null : Routes.welcome),
         AuthStatus.signedIn =>
           (location.startsWith('/signup') ||
                   location == Routes.invitation ||
                   location == Routes.taskResult)
               ? null
-              : (location == Routes.splash || AuthPaths.isPublic(location)
-                    ? Routes.home
-                    : null),
+              : (location == Routes.splash &&
+                    _invitationLocation(state.uri.queryParameters['next']) !=
+                        null)
+              ? _invitationLocation(state.uri.queryParameters['next'])
+              : (location == Routes.login
+                    ? _afterLogin(state.uri.queryParameters['next'])
+                    : (location == Routes.splash || AuthPaths.isPublic(location)
+                          ? Routes.home
+                          : null)),
       };
     },
     routes: [
@@ -136,3 +153,17 @@ final routerProvider = Provider<GoRouter>((ref) {
   });
   return router;
 });
+
+String _afterLogin(String? next) {
+  return _invitationLocation(next) ?? Routes.home;
+}
+
+String? _invitationLocation(String? next) {
+  final uri = next == null ? null : Uri.tryParse(next);
+  return uri != null &&
+          !uri.hasScheme &&
+          !uri.hasAuthority &&
+          uri.path == Routes.invitation
+      ? uri.toString()
+      : null;
+}

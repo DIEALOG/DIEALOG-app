@@ -66,6 +66,19 @@ class ConfirmerRepository {
     return TransitionCase.fromJson(response.data!);
   }
 
+  Future<List<TransitionConfirmation>> listConfirmations(
+    String authToken,
+    String caseId,
+  ) async {
+    final response = await guardApi(
+      () => _dio.get<List<dynamic>>(
+        '/transition/confirmer/cases/$caseId/confirmations',
+        options: _confirmerOptions(authToken),
+      ),
+    );
+    return parseList(response.data, TransitionConfirmation.fromJson);
+  }
+
   Future<TransitionConfirmation> confirm(
     String authToken,
     String caseId,

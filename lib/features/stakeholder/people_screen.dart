@@ -8,6 +8,7 @@ import '../../core/widgets/app_icon.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/models/transition_confirmer.dart';
 import '../transition/confirmer_cases_screen.dart';
+import '../transition/transition_request_screen.dart';
 import 'group_edit_screen.dart';
 import 'people_providers.dart';
 import 'stakeholder_edit_screen.dart';
@@ -63,7 +64,16 @@ class PeopleScreen extends ConsumerWidget {
                     style: AppText.greeting,
                   ),
                   const SizedBox(height: 26),
-                  _RequestEntry(),
+                  const _RequestEntry(
+                    title: '내게 온 요청',
+                    subtitle: '사후 전환 확인 요청을 확인해요.',
+                    screen: ConfirmerCasesScreen(),
+                  ),
+                  const _RequestEntry(
+                    title: '사후 전환 요청하기',
+                    subtitle: '확인자로 지정된 사람에게 전환을 요청해요.',
+                    screen: TransitionRequestScreen(),
+                  ),
                   const SizedBox(height: 22),
                   Row(
                     children: [
@@ -171,10 +181,20 @@ class PeopleScreen extends ConsumerWidget {
 }
 
 class _RequestEntry extends StatelessWidget {
+  const _RequestEntry({
+    required this.title,
+    required this.subtitle,
+    required this.screen,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget screen;
+
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: () => Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ConfirmerCasesScreen()),
+      MaterialPageRoute<void>(builder: (_) => screen),
     ),
     child: Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -188,12 +208,12 @@ class _RequestEntry extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '내게 온 요청',
+                  title,
                   style: AppText.listTitle.copyWith(fontSize: 18),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '나를 확인자로 지정한 사람과 사후 전환 요청을 확인해요.',
+                  subtitle,
                   style: AppText.listCaption,
                 ),
               ],

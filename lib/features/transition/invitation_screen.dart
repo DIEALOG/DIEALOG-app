@@ -7,12 +7,21 @@ import '../../core/theme/app_text.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../data/models/confirmer_access.dart';
 import '../../data/providers.dart';
+import '../auth/auth_controller.dart';
+import '../notifications/notification_providers.dart';
 import 'confirmer_cases_screen.dart';
 
 class InvitationScreen extends ConsumerStatefulWidget {
-  const InvitationScreen({super.key, this.initialToken});
+  const InvitationScreen({
+    super.key,
+    this.initialToken,
+    this.notificationId,
+    this.confirmerId,
+  });
 
   final String? initialToken;
+  final String? notificationId;
+  final String? confirmerId;
 
   @override
   ConsumerState<InvitationScreen> createState() => _InvitationScreenState();
@@ -31,7 +40,57 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
     super.dispose();
   }
 
+  Future<void> _clearInvitationNotification() async {
+    final id = widget.notificationId;
+    if (id == null) return;
+    try {
+      await ref.read(notificationRepositoryProvider).delete(id);
+    } on ApiException {
+      // The invitation state is authoritative even if removing the old alert fails.
+    }
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadNotificationCountProvider);
+  }
+
+  Future<bool> _recoverAcceptedInvitation() async {
+    final id = widget.confirmerId;
+    if (id == null || ref.read(authControllerProvider) != AuthStatus.signedIn) {
+      return false;
+    }
+    try {
+      final claimed = await ref
+          .read(transitionRepositoryProvider)
+          .claimAccess();
+      final store = ref.read(confirmerSessionStoreProvider);
+      final previous = await store.read();
+      var matched = false;
+      for (final access in claimed) {
+        final fresh = ConfirmerSession.fromAccess(access);
+        final old = previous
+            .where((item) => item.confirmerId == fresh.confirmerId)
+            .firstOrNull;
+        await store.upsert(
+          old == null ? fresh : fresh.withCaseIds(old.knownCaseIds),
+        );
+        matched = matched || access.confirmer.id == id;
+      }
+      if (matched) {
+        await _clearInvitationNotification();
+        ref.invalidate(confirmerInboxProvider);
+        if (mounted) setState(() => _result = '이미 수락한 요청이에요.');
+        return true;
+      }
+    } on ApiException {
+      // Show the original server error when this login has no matching invite.
+    }
+    return false;
+  }
+
   Future<void> _respond({required bool accept}) async {
+    if (ref.read(authControllerProvider) != AuthStatus.signedIn) {
+      setState(() => _error = '로그인한 뒤 초대 코드를 입력해 주세요.');
+      return;
+    }
     final token = _code.text.trim();
     if (token.isEmpty) {
       setState(() => _error = '초대 코드를 입력해 주세요.');
@@ -69,6 +128,8 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
           await ref
               .read(confirmerSessionStoreProvider)
               .upsert(ConfirmerSession.fromAccess(access));
+          await _clearInvitationNotification();
+          ref.invalidate(confirmerInboxProvider);
           if (mounted) setState(() => _result = '확인자 초대를 수락했어요.');
         } catch (_) {
           if (mounted) {
@@ -80,10 +141,20 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
         }
       } else {
         await repository.declineInvitation(token);
+        await _clearInvitationNotification();
         if (mounted) setState(() => _result = '확인자 초대를 거절했어요.');
       }
       _code.clear();
     } on ApiException catch (error) {
+      if (accept &&
+          (error.message.toLowerCase().contains('invitation not found') ||
+              error.message.toLowerCase().contains(
+                'invitation is no longer active',
+              )) &&
+          await _recoverAcceptedInvitation()) {
+        _code.clear();
+        return;
+      }
       if (mounted) setState(() => _error = error.userMessage);
     } catch (_) {
       if (mounted) setState(() => _error = '초대를 처리하지 못했어요. 다시 시도해 주세요.');
@@ -103,12 +174,7 @@ class _InvitationScreenState extends ConsumerState<InvitationScreen> {
           children: [
             Text(_result ?? '초대 코드를 입력해 주세요', style: AppText.screenTitle),
             const SizedBox(height: 12),
-            Text(
-              '초대를 수락하면 사후 전환 요청이 들어왔을 때 '
-              '사실 여부를 확인하는 역할을 맡게 됩니다. '
-              '수락만으로 기록 열람 권한이 생기지는 않아요.',
-              style: AppText.paragraph,
-            ),
+            Text('초대를 수락하면 사후 전환을 확인할 수 있어요.', style: AppText.paragraph),
             if (_result == null) ...[
               const SizedBox(height: 32),
               Text('초대 코드', style: AppText.fieldLabel),

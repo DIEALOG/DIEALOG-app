@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_colors.dart';
@@ -39,56 +40,106 @@ class _SheetHeader extends StatelessWidget {
   );
 }
 
-/// 19-12: read-only explanation of the current policy.
 Future<void> showTransitionCriteriaSheet(
   BuildContext context,
   TransitionPolicy policy,
-) => _showSheet<void>(
-  context,
-  (context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Center(child: _Grabber()),
-        const SizedBox(height: 12),
-        const _SheetHeader('사후 전환 기준'),
-        const SizedBox(height: 16),
-        Text('확인자 ${policy.minimumConfirmers}명 이상 동의', style: AppText.section),
-        const SizedBox(height: 8),
-        Text(
-          '사후 전환 요청에 대해 지정된 확인자 중 ${policy.minimumConfirmers}명 이상이 '
-          '사실이라고 확인해야 합니다.',
-          style: AppText.paragraph,
+) => _showSheet<void>(context, (context) => _CriteriaSheet(policy: policy));
+
+class _CriteriaSheet extends ConsumerStatefulWidget {
+  const _CriteriaSheet({required this.policy});
+
+  final TransitionPolicy policy;
+
+  @override
+  ConsumerState<_CriteriaSheet> createState() => _CriteriaSheetState();
+}
+
+class _CriteriaSheetState extends ConsumerState<_CriteriaSheet> {
+  late final _days = TextEditingController(
+    text: '${widget.policy.waitingPeriodDays}',
+  );
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _days.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final days = int.tryParse(_days.text);
+    if (days == null || days < 0) {
+      setState(() => _error = '대기 기간을 0일 이상의 숫자로 입력해 주세요.');
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(transitionRepositoryProvider)
+          .updatePolicy(waitingPeriodDays: days);
+      ref.invalidate(settingsOverviewProvider);
+      ref.invalidate(confirmerBoardProvider);
+      if (mounted) Navigator.of(context).pop();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.userMessage);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: SafeArea(
+      top: false,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Center(child: _Grabber()),
+            const SizedBox(height: 12),
+            const _SheetHeader('사후 전환 기준'),
+            const SizedBox(height: 16),
+            Text(
+              '확인자 ${widget.policy.minimumConfirmers}명 이상 동의',
+              style: AppText.section,
+            ),
+            const SizedBox(height: 24),
+            Text('대기 기간(일)', style: AppText.fieldLabel),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _days,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(hintText: '0'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: AppText.helper.copyWith(color: AppColors.unread),
+              ),
+            ],
+            const SizedBox(height: 20),
+            PrimaryButton(label: '저장', busy: _saving, onPressed: _save),
+          ],
         ),
-        const Divider(height: 32, color: AppColors.listDivider),
-        Text('${policy.waitingPeriodDays}일 대기', style: AppText.section),
-        const SizedBox(height: 8),
-        Text('확인 기준이 충족된 이후 추가 검토 및 대기 기간을 거칩니다.', style: AppText.paragraph),
-        const SizedBox(height: 20),
-        Text(
-          '확인자의 동의만으로 기록이 즉시 공개되지는 않습니다. 추가 확인이 완료되어야 사후 공개가 진행됩니다.',
-          style: AppText.helper,
-        ),
-        const SizedBox(height: 20),
-        PrimaryButton(
-          label: '확인',
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ],
+      ),
     ),
-  ),
-);
+  );
+}
 
 /// 19-13~16: pick how often the server checks in.
 Future<void> showAliveCheckIntervalSheet(
   BuildContext context,
   TransitionPolicy policy,
-) => _showSheet<void>(
-  context,
-  (context) => _IntervalSheet(policy: policy),
-);
+) => _showSheet<void>(context, (context) => _IntervalSheet(policy: policy));
 
 class _IntervalSheet extends ConsumerStatefulWidget {
   const _IntervalSheet({required this.policy});
@@ -148,20 +199,10 @@ class _IntervalSheetState extends ConsumerState<_IntervalSheet> {
               selected: days == _days,
               onTap: () => setState(() => _days = days),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 16),
-            child: Text(
-              '생존 확인 요청에 응답하지 않았다는 이유만으로 사후 공개가 자동으로 확정되지는 않습니다.',
-              style: AppText.helper,
-            ),
-          ),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: PrimaryButton(
-              label: '저장',
-              busy: _saving,
-              onPressed: _save,
-            ),
+            child: PrimaryButton(label: '저장', busy: _saving, onPressed: _save),
           ),
         ],
       ),

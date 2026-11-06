@@ -29,7 +29,6 @@ abstract final class AuthPaths {
   static bool isPublic(String location) =>
       location == Routes.welcome ||
       location == Routes.login ||
-      location == Routes.invitation ||
       location == Routes.taskResult ||
       (location.startsWith('/signup') && location != Routes.signupComplete);
 }

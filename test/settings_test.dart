@@ -17,12 +17,14 @@ TransitionConfirmer _confirmer(String id, ConfirmerStatus status) =>
       stakeholderId: 's-$id',
     );
 
-ConfirmerBoard _board(List<TransitionConfirmer> confirmers, {int minimum = 2}) =>
-    ConfirmerBoard(
-      confirmers: confirmers,
-      people: const [],
-      policy: TransitionPolicy(minimumConfirmers: minimum),
-    );
+ConfirmerBoard _board(
+  List<TransitionConfirmer> confirmers, {
+  int minimum = 2,
+}) => ConfirmerBoard(
+  confirmers: confirmers,
+  people: const [],
+  policy: TransitionPolicy(minimumConfirmers: minimum),
+);
 
 void main() {
   test('pending invites do not count toward the minimum', () {
@@ -44,8 +46,10 @@ void main() {
       _confirmer('b', ConfirmerStatus.accepted),
       _confirmer('c', ConfirmerStatus.pending),
     ]);
-    expect(atMinimum.canRevoke(_confirmer('a', ConfirmerStatus.accepted)),
-        isFalse);
+    expect(
+      atMinimum.canRevoke(_confirmer('a', ConfirmerStatus.accepted)),
+      isFalse,
+    );
     // A pending invite can always be withdrawn.
     expect(
       atMinimum.canRevoke(_confirmer('c', ConfirmerStatus.pending)),
@@ -64,42 +68,49 @@ void main() {
     const person = Stakeholder(id: 's-a', name: '이도윤');
     final board = ConfirmerBoard(
       confirmers: [_confirmer('a', ConfirmerStatus.pending)],
-      people: const [person, Stakeholder(id: 's-z', name: '김정희')],
+      people: const [
+        person,
+        Stakeholder(id: 's-z', name: '김정희'),
+      ],
       policy: const TransitionPolicy(),
     );
 
     expect(board.isAssigned(person), isTrue);
-    expect(board.isAssigned(const Stakeholder(id: 's-z', name: '김정희')),
-        isFalse);
+    expect(
+      board.isAssigned(const Stakeholder(id: 's-z', name: '김정희')),
+      isFalse,
+    );
   });
 
-  test('a missing policy row is the schema default, not a settings error',
-      () async {
-    final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
-      ..interceptors.add(
-        InterceptorsWrapper(
-          onRequest: (options, handler) {
-            handler.reject(
-              DioException(
-                requestOptions: options,
-                type: DioExceptionType.badResponse,
-                response: Response<Map<String, dynamic>>(
+  test(
+    'a missing policy row is the schema default, not a settings error',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
+        ..interceptors.add(
+          InterceptorsWrapper(
+            onRequest: (options, handler) {
+              handler.reject(
+                DioException(
                   requestOptions: options,
-                  statusCode: 404,
-                  data: const {'message': 'transition policy not found'},
+                  type: DioExceptionType.badResponse,
+                  response: Response<Map<String, dynamic>>(
+                    requestOptions: options,
+                    statusCode: 404,
+                    data: const {'message': 'transition policy not found'},
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
-      );
-    final transitions = TransitionRepository(dio);
-    final policy = await transitions.fetchPolicy();
-    expect(policy.minimumConfirmers, 2);
-    expect(policy.waitingPeriodDays, 7);
-    expect(policy.summary, '확인자 2명 동의 + 7일 대기');
-    dio.close();
-  });
+              );
+            },
+          ),
+        );
+      final transitions = TransitionRepository(dio);
+      final policy = await transitions.fetchPolicy();
+      expect(policy.minimumConfirmers, 2);
+      expect(policy.waitingPeriodDays, 7);
+      expect(policy.summary, '확인자 2명 동의 + 7일 대기');
+      dio.close();
+    },
+  );
 
   test('patching the interval leaves the other policy fields alone', () async {
     final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
@@ -117,10 +128,35 @@ void main() {
     expect(after.aliveCheckIntervalDays, 180);
     expect(after.minimumConfirmers, before.minimumConfirmers);
     expect(after.waitingPeriodDays, before.waitingPeriodDays);
-    expect(after.summary, '확인자 ${before.minimumConfirmers}명 동의 '
-        '+ ${before.waitingPeriodDays}일 대기');
+    expect(
+      after.summary,
+      '확인자 ${before.minimumConfirmers}명 동의 '
+      '+ ${before.waitingPeriodDays}일 대기',
+    );
     dio.close();
   });
+
+  test(
+    'waiting period accepts zero without changing confirmer count',
+    () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api'))
+        ..interceptors.add(
+          MockApiInterceptor(
+            backend: MockBackend.seeded(),
+            latency: Duration.zero,
+          ),
+        );
+      final transitions = TransitionRepository(dio);
+      final before = await transitions.fetchPolicy();
+
+      final after = await transitions.updatePolicy(waitingPeriodDays: 0);
+
+      expect(after.waitingPeriodDays, 0);
+      expect(after.minimumConfirmers, before.minimumConfirmers);
+      expect(after.aliveCheckIntervalDays, before.aliveCheckIntervalDays);
+      dio.close();
+    },
+  );
 
   test('local settings round-trip and default notifications on', () async {
     final store = InMemoryLocalSettingsStore();
