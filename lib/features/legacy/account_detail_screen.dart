@@ -7,6 +7,7 @@ import '../../core/router/routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text.dart';
 import '../../core/widgets/screen_header.dart';
+import 'account_edit_screen.dart';
 import 'legacy_providers.dart';
 import 'widgets/account_sections.dart';
 
@@ -31,13 +32,18 @@ class _AccountDetailScreenState extends ConsumerState<AccountDetailScreen> {
 
   AccountKey get _key => (legacyId: widget.legacyId, accountId: _accountId);
 
-  /// The update endpoint preserves the account id.
+  /// The update endpoint preserves the account id. A delete leaves nothing to
+  /// come back to, so this screen closes with the editor.
   Future<void> _edit() async {
-    final savedId = await context.push<String>(
+    final result = await context.push<AccountEdited>(
       Routes.accountEditOf(widget.legacyId, _accountId),
     );
-    if (!mounted || savedId == null) return;
-    setState(() => _accountId = savedId);
+    if (!mounted || result == null) return;
+    if (result.deleted) {
+      context.pop();
+      return;
+    }
+    setState(() => _accountId = result.accountId!);
   }
 
   @override

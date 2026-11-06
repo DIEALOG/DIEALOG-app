@@ -248,16 +248,26 @@ class MockBackend {
       final account = _requireAccount(at(4));
       if (verb == 'GET') return MockResult(200, _accountDetailJson(account));
       if (verb == 'PUT') {
-        // Omitting a credential leaves the stored one alone, like the server.
-        for (final key in [
-          'name',
-          'type',
-          'action',
-          'account_id',
-          'account_password',
-          'data_location',
-        ]) {
+        final renamed = data['name'] != null && data['name'] != account['name'];
+        for (final key in ['name', 'type', 'action']) {
           if (data[key] != null) account[key] = data[key];
+        }
+        // The server writes these columns from the request every time, so
+        // leaving one out clears it rather than keeping the old value.
+        for (final key in ['account_id', 'data_location']) {
+          if (data[key] == null) {
+            account.remove(key);
+          } else {
+            account[key] = data[key];
+          }
+        }
+        // A password is filed under the account name, not its id. Omitting one
+        // leaves the stored password alone, but renaming without resending it
+        // strands the old entry under the old name.
+        if (data['account_password'] != null) {
+          account['account_password'] = data['account_password'];
+        } else if (renamed) {
+          account.remove('account_password');
         }
         account['stakeholder_ids'] = List<String>.from(
           (data['stakeholder_ids'] as List?) ?? const [],

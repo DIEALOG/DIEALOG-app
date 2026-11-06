@@ -16,10 +16,22 @@ import 'legacy_providers.dart';
 import 'widgets/account_sections.dart';
 import 'widgets/action_method_sheet.dart';
 import 'widgets/form_fields.dart';
+import 'widgets/service_sheet.dart';
 
-/// `06-1 · 처리 지침 편집`
+/// What [AccountEditScreen] hands back, so the detail screen behind it knows
+/// whether to reload the account or close with it.
+class AccountEdited {
+  const AccountEdited.saved(String this.accountId) : deleted = false;
+  const AccountEdited.deleted() : accountId = null, deleted = true;
+
+  final String? accountId;
+  final bool deleted;
+}
+
+/// `06-1 · 계정 편집`
 ///
-/// Saves the processing instructions and audience on the existing account.
+/// Edits everything about an account — service, name, credentials, handling
+/// instructions and audience — and can delete it.
 class AccountEditScreen extends ConsumerStatefulWidget {
   const AccountEditScreen({
     super.key,
@@ -35,8 +47,14 @@ class AccountEditScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
+  final _customService = TextEditingController();
+  final _name = TextEditingController();
+  final _accountId = TextEditingController();
+  final _password = TextEditingController();
+  final _dataLocation = TextEditingController();
   final _message = TextEditingController();
 
+  ServiceChoice? _choice;
   AccountActionKind? _kind;
   AudienceSelection? _selection;
   var _busy = false;
@@ -48,13 +66,32 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
 
   @override
   void dispose() {
-    _message.dispose();
+    for (final controller in [
+      _customService,
+      _name,
+      _accountId,
+      _password,
+      _dataLocation,
+      _message,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   void _load(Account account) {
     if (_loaded) return;
     _loaded = true;
+    final type = account.type;
+    _choice =
+        serviceChoices
+            .where((choice) => choice.matches(type?.service, type?.name))
+            .firstOrNull ??
+        serviceChoices.last;
+    if (_choice!.custom) _customService.text = type?.name ?? '';
+    _name.text = account.name;
+    _accountId.text = account.accountId ?? '';
+    _dataLocation.text = account.dataLocation ?? '';
     _kind = account.action?.kind ?? AccountActionKind.delete;
     _message.text = account.action?.message ?? '';
     _selection = AudienceSelection(
@@ -67,6 +104,11 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
         for (final group in account.stakeholderGroups) group.id,
       },
     );
+  }
+
+  Future<void> _pickService() async {
+    final picked = await showServiceSheet(context, selected: _choice);
+    if (picked != null) setState(() => _choice = picked);
   }
 
   Future<void> _pickAudience() async {
@@ -99,13 +141,48 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
     if (picked != null) setState(() => _kind = picked);
   }
 
+  void _refresh() {
+    ref
+      ..invalidate(dataOverviewProvider)
+      ..invalidate(homeSnapshotProvider)
+      ..invalidate(peopleOverviewProvider)
+      ..invalidate(accountProvider(_key))
+      ..invalidate(accountDetailProvider(_key));
+  }
+
+  static String? _trimmedOrNull(TextEditingController controller) {
+    final value = controller.text.trim();
+    return value.isEmpty ? null : value;
+  }
+
   Future<void> _save(Account account) async {
+    final choice = _choice!;
+    final custom = _customService.text.trim();
+    final name = _name.text.trim();
     final kind = _kind ?? AccountActionKind.delete;
     final message = _message.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = '계정·데이터 이름을 입력해 주세요.');
+      return;
+    }
+    if (choice.custom && custom.isEmpty) {
+      setState(() => _error = '서비스 이름을 적어 주세요.');
+      return;
+    }
     if (kind == AccountActionKind.other && message.isEmpty) {
       setState(() => _error = '직접 작성은 상세 지침을 적어야 저장할 수 있어요.');
       return;
     }
+    final typed = _password.text;
+    // The server files a password under the account name, so a rename has to
+    // carry the old one along or the credential is left behind under the old
+    // name. An untouched field on an unchanged name sends nothing, which
+    // leaves the stored password alone.
+    final password = typed.isNotEmpty
+        ? typed
+        : name != account.name
+        ? account.accountPassword
+        : null;
     setState(() {
       _busy = true;
       _error = null;
@@ -115,24 +192,75 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
           .read(legacyRepositoryProvider)
           .updateAccount(
             widget.legacyId,
-            account.copyWith(
+            Account(
+              id: account.id,
+              legacyId: account.legacyId,
+              name: name,
+              type: AccountType(
+                service: choice.service,
+                name: choice.custom ? custom : choice.name,
+              ),
               action: AccountAction(
                 kind: kind,
                 message: message.isEmpty ? null : message,
               ),
+              accountId: _trimmedOrNull(_accountId),
+              accountPassword: password,
+              dataLocation: _trimmedOrNull(_dataLocation),
               stakeholderIds: _selection!.people.toList(),
               stakeholderGroupIds: _selection!.groups.toList(),
             ),
           );
-      ref
-        ..invalidate(dataOverviewProvider)
-        ..invalidate(homeSnapshotProvider)
-        ..invalidate(peopleOverviewProvider)
-        ..invalidate(accountProvider(_key))
-        ..invalidate(accountDetailProvider(_key));
-      if (mounted) context.pop(saved.id);
+      _refresh();
+      if (mounted) context.pop(AccountEdited.saved(saved.id));
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.userMessage);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _delete(Account account) async {
+    final audience = account.disclosedTo.length;
+    final approved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('이 계정을 삭제할까요?'),
+        content: Text(
+          audience == 0
+              ? '저장한 계정 정보와 처리 지침이 사라져요. 되돌릴 수 없어요.'
+              : '저장한 계정 정보와 처리 지침이 사라지고, '
+                    '공개 대상 $audience명에게 더 이상 전달되지 않아요. 되돌릴 수 없어요.',
+          style: AppText.body,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              '삭제',
+              style: TextStyle(color: AppColors.unread),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (approved != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(legacyRepositoryProvider)
+          .removeAccount(widget.legacyId, account.id);
+      _refresh();
+      if (mounted) context.pop(const AccountEdited.deleted());
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.userMessage);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -149,7 +277,7 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                e is ApiException ? e.message : '데이터를 불러오지 못했어요.',
+                e is ApiException ? e.userMessage : '데이터를 불러오지 못했어요.',
                 style: AppText.body,
                 textAlign: TextAlign.center,
               ),
@@ -160,8 +288,28 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
             return Column(
               children: [
                 ScreenHeader(
-                  actionLabel: '저장',
-                  onAction: _busy ? null : () => _save(data),
+                  trailing: Row(
+                    children: [
+                      IconButton(
+                        tooltip: '계정 삭제',
+                        onPressed: _busy ? null : () => _delete(data),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 22,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : () => _save(data),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          foregroundColor: AppText.headerAction.color,
+                        ),
+                        child: Text('저장', style: AppText.headerAction),
+                      ),
+                    ],
+                  ),
                 ),
                 Expanded(child: _form(data)),
                 Padding(
@@ -177,23 +325,70 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
   }
 
   Widget _form(Account account) {
+    final choice = _choice!;
     final kind = _kind ?? AccountActionKind.delete;
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
-        Text(
-          account.type?.label ?? '기타',
-          style: AppText.rowValue.copyWith(
-            fontWeight: FontWeight.w400,
-            color: AppColors.brand,
-          ),
+        Text('계정 편집', style: AppText.screenTitle),
+        const SizedBox(height: 28),
+        SelectField(
+          label: '서비스',
+          value: choice.label,
+          onTap: _busy ? () {} : _pickService,
         ),
-        const SizedBox(height: 3),
-        Text(account.name, style: AppText.screenTitle),
-        const SizedBox(height: 38),
+        if (choice.custom) ...[
+          const SizedBox(height: 12),
+          AppFormField(
+            controller: _customService,
+            hint: '서비스 이름을 적어 주세요',
+            onChanged: (_) => setState(() {}),
+          ),
+        ],
+        const SizedBox(height: 20),
+        AppFormField(
+          label: '계정·데이터 이름',
+          controller: _name,
+          hint: '예: 개인 계정, 가족사진',
+          textInputAction: TextInputAction.next,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 20),
+        AppFormField(
+          label: '아이디·이메일',
+          optional: true,
+          controller: _accountId,
+          hint: '로그인 아이디',
+          keyboardType: TextInputType.emailAddress,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 20),
+        AppFormField(
+          label: '비밀번호',
+          optional: true,
+          controller: _password,
+          hint: _passwordHint(account),
+          obscureText: true,
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          account.accountPassword == null
+              ? '저장된 비밀번호가 없어요.'
+              : '비워 두면 저장된 비밀번호를 그대로 둬요.',
+          style: AppText.helper,
+        ),
+        const SizedBox(height: 20),
+        AppFormField(
+          label: '자료 위치',
+          optional: true,
+          controller: _dataLocation,
+          hint: '폴더 경로나 링크',
+        ),
+        const SizedBox(height: 36),
         const FieldLabel('처리 방식'),
         const SizedBox(height: 8),
-        SelectField(value: kind.label, onTap: _pickKind),
+        SelectField(value: kind.label, onTap: _busy ? () {} : _pickKind),
         const SizedBox(height: 36),
         const FieldLabel('상세 지침', optional: true),
         const SizedBox(height: 12),
@@ -221,11 +416,22 @@ class _AccountEditScreenState extends ConsumerState<AccountEditScreen> {
           ),
         ),
         AccountAudienceSection(account: account, selection: _selection),
-        const SizedBox(height: 32),
-        AccountInfoSection(account: account),
+        const SizedBox(height: 28),
+        Center(
+          child: TextButton(
+            onPressed: _busy ? null : () => _delete(account),
+            child: const Text(
+              '이 계정 삭제',
+              style: TextStyle(color: AppColors.unread),
+            ),
+          ),
+        ),
       ],
     );
   }
+
+  static String _passwordHint(Account account) =>
+      account.accountPassword == null ? '필요한 경우에만' : '변경할 때만 입력';
 }
 
 class _MessageField extends StatelessWidget {
