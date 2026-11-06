@@ -2,7 +2,7 @@
 """Draw every launcher icon from assets/images/diealog_logo.png.
 
 The logo is black line art on transparency, so each icon is the same mark in
-white over AppColors.inkDeep. Run from the repository root:
+white over black. Run from the repository root:
 
     python3 tool/make_launcher_icons.py
 """
@@ -14,8 +14,9 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 LOGO = ROOT / "assets/images/diealog_logo.png"
-BACKGROUND = (0x16, 0x23, 0x3A, 0xFF)  # AppColors.inkDeep
+BACKGROUND = (0x00, 0x00, 0x00, 0xFF)
 MARK = (0xFF, 0xFF, 0xFF, 0xFF)
+BACKGROUND_HEX = "#{:02X}{:02X}{:02X}".format(*BACKGROUND[:3])
 SUPERSAMPLE = 4
 # The logo draws a 25px line across a 965px mark. Shrunk to a 48px icon that
 # line lands under a pixel and disappears, so thicken it back to a floor.
@@ -124,7 +125,7 @@ def android(mark: Image.Image) -> None:
     (res / "values/ic_launcher_background.xml").write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         "<resources>\n"
-        '    <color name="ic_launcher_background">#16233A</color>\n'
+        f'    <color name="ic_launcher_background">{BACKGROUND_HEX}</color>\n'
         "</resources>\n"
     )
     print("  mipmap-anydpi-v26/ic_launcher.xml, values/ic_launcher_background.xml")
