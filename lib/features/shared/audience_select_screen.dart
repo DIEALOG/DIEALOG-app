@@ -13,6 +13,7 @@ class AudienceSelectScreen extends StatefulWidget {
     required this.initial,
     this.allowEmpty = false,
     this.buttonLabel = '다음',
+    this.onCreateGroup,
     this.title = '받는 사람 선택',
   });
 
@@ -21,6 +22,7 @@ class AudienceSelectScreen extends StatefulWidget {
   final AudienceSelection initial;
   final bool allowEmpty;
   final String buttonLabel;
+  final Future<List<StakeholderGroup>> Function()? onCreateGroup;
   final String title;
 
   @override
@@ -29,10 +31,16 @@ class AudienceSelectScreen extends StatefulWidget {
 
 class _AudienceSelectScreenState extends State<AudienceSelectScreen> {
   late AudienceSelection _selection = widget.initial;
+  late List<StakeholderGroup> _groups = widget.groups;
+
+  Future<void> _createGroup() async {
+    final groups = await widget.onCreateGroup?.call();
+    if (groups != null && mounted) setState(() => _groups = groups);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final count = _selection.resolvedIds(widget.groups).length;
+    final count = _selection.resolvedIds(_groups).length;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -56,10 +64,22 @@ class _AudienceSelectScreenState extends State<AudienceSelectScreen> {
                 ],
               ),
             ),
+            if (widget.onCreateGroup != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _createGroup,
+                    icon: const Icon(Icons.add),
+                    label: const Text('그룹 만들기'),
+                  ),
+                ),
+              ),
             Expanded(
               child: AudiencePicker(
                 people: widget.people,
-                groups: widget.groups,
+                groups: _groups,
                 selection: _selection,
                 onChanged: (selection) =>
                     setState(() => _selection = selection),

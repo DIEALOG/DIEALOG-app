@@ -10,6 +10,8 @@ import '../../data/models/last_word.dart';
 import '../../data/models/stakeholder.dart';
 import '../../data/providers.dart';
 import '../home/home_screen.dart';
+import '../stakeholder/group_edit_screen.dart';
+import '../stakeholder/people_providers.dart';
 import '../shared/audience_picker.dart';
 import '../shared/audience_select_screen.dart';
 import 'letter_draft_store.dart';
@@ -118,12 +120,45 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
   }
 
   String _recipientLabel(Set<String> ids) {
+    if (_selection.people.isEmpty && _selection.groups.isNotEmpty) {
+      final groupNames = _availableGroups
+          .where((group) => _selection.groups.contains(group.id))
+          .map((group) => group.name)
+          .toList();
+      if (groupNames.length == 1) return groupNames.single;
+      if (groupNames.length > 1) {
+        return '${groupNames.first} 외 ${groupNames.length - 1}개 그룹';
+      }
+    }
     final firstId = ids.first;
-    final name = _availablePeople
-        .where((person) => person.id == firstId)
-        .map((person) => person.name)
-        .firstOrNull ?? '관계자';
+    final name =
+        _availablePeople
+            .where((person) => person.id == firstId)
+            .map((person) => person.name)
+            .firstOrNull ??
+        '관계자';
     return ids.length == 1 ? name : '$name 외 ${ids.length - 1}명';
+  }
+
+  Future<List<StakeholderGroup>> _createGroup() async {
+    try {
+      final overview = await ref.read(peopleOverviewProvider.future);
+      if (!mounted) return _availableGroups;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => GroupEditScreen(overview: overview),
+        ),
+      );
+      final groups = await ref.read(stakeholderRepositoryProvider).listGroups();
+      if (mounted) setState(() => _availableGroups = groups);
+      return groups;
+    } on ApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.userMessage)));
+      }
+      return _availableGroups;
+    }
   }
 
   Future<void> _pickAudience() async {
@@ -148,6 +183,7 @@ class _LetterEditScreenState extends ConsumerState<LetterEditScreen> {
           people: _availablePeople,
           groups: _availableGroups,
           initial: _selection,
+          onCreateGroup: _createGroup,
         ),
       ),
     );
