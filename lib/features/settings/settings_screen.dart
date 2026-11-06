@@ -168,6 +168,7 @@ class _Body extends ConsumerWidget {
           const _SectionLabel('계정'),
           _ValueRow(
             label: '로그아웃',
+            labelColor: AppColors.unread,
             showChevron: false,
             onTap: () => ref.read(authControllerProvider.notifier).logout(),
           ),
@@ -282,11 +283,13 @@ class _ValueRow extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.value,
+    this.labelColor,
     this.showChevron = true,
   });
 
   final String label;
   final String? value;
+  final Color? labelColor;
   final bool showChevron;
   final VoidCallback onTap;
 
@@ -300,7 +303,10 @@ class _ValueRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Text(label, style: AppText.body.copyWith(color: AppColors.ink)),
+          Text(
+            label,
+            style: AppText.body.copyWith(color: labelColor ?? AppColors.ink),
+          ),
           const SizedBox(width: 12),
           // The value takes the rest of the row so summaries like
           // "확인자 2명 동의 + 14일 대기" stay readable.

@@ -91,11 +91,6 @@ class _SignupTermsScreenState extends ConsumerState<SignupTermsScreen> {
             checked: _marketing,
             onTap: () => setState(() => _marketing = !_marketing),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text('각 항목을 눌러 내용을 확인할 수 있어요.', style: AppText.helper),
-          ),
         ],
       ),
     );

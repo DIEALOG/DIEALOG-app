@@ -42,6 +42,12 @@ class SignupCompleteScreen extends ConsumerWidget {
                 style: AppText.body.copyWith(fontSize: 16, height: 28 / 16),
               ),
               const Spacer(),
+              Center(
+                child: TextButton(
+                  onPressed: enterHome,
+                  child: Text('홈에서 둘러보기', style: AppText.textButton),
+                ),
+              ),
               PrimaryButton(
                 label: '첫 데이터 등록하기',
                 // Pushed over this screen, so cancelling lands back here
@@ -50,13 +56,6 @@ class SignupCompleteScreen extends ConsumerWidget {
                   final saved = await context.push<Object?>(Routes.accountNew);
                   if (saved == true && context.mounted) enterHome();
                 },
-              ),
-              const SizedBox(height: 4),
-              Center(
-                child: TextButton(
-                  onPressed: enterHome,
-                  child: Text('홈에서 둘러보기', style: AppText.textButton),
-                ),
               ),
               const SizedBox(height: 12),
             ],

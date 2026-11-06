@@ -88,14 +88,10 @@ class SignupScaffold extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 12),
                 child: Column(
                   children: [
-                    PrimaryButton(
-                      label: buttonLabel,
-                      onPressed: onNext,
-                      enabled: buttonEnabled,
-                      busy: busy,
-                    ),
+                    // The note sits above the action so the button stays on
+                    // the bottom edge. Putting it underneath lifts the button
+                    // on the last step, where the keyboard is gone.
                     if (!compact || footnoteIsError) ...[
-                      const SizedBox(height: 8),
                       Text(
                         footnote,
                         style: footnoteIsError
@@ -103,7 +99,14 @@ class SignupScaffold extends StatelessWidget {
                             : AppText.footnote,
                         textAlign: TextAlign.center,
                       ),
+                      const SizedBox(height: 8),
                     ],
+                    PrimaryButton(
+                      label: buttonLabel,
+                      onPressed: onNext,
+                      enabled: buttonEnabled,
+                      busy: busy,
+                    ),
                     const SizedBox(height: 8),
                   ],
                 ),

@@ -34,6 +34,11 @@ void main() {
     expect(find.text(_subtitle), findsOneWidget);
     expect(find.text(_footnote), findsOneWidget);
     expect(find.text('3 / 6'), findsOneWidget);
+    expect(
+      tester.getRect(find.text('다음')).top,
+      greaterThan(tester.getRect(find.text(_footnote)).bottom),
+      reason: 'the action stays below the note, on the bottom edge',
+    );
     expect(tester.takeException(), isNull);
   });
 
